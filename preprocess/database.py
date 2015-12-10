@@ -11,8 +11,10 @@ from sqlalchemy.engine import create_engine
 from sqlalchemy import MetaData, Table, Column, Integer, String, Float, TIMESTAMP, ForeignKey, BigInteger, Numeric
 from sqlalchemy import select
 from sqlalchemy import func
+from logger import config_logger
 
-print config.DB_LOGIN
+LOG = config_logger(__name__)
+
 engine = create_engine(config.DB_LOGIN)
 connection = engine.connect()
 
@@ -192,5 +194,13 @@ def exists_in_db(filename):
 
     return True
 
+if __name__ == '__main__':
+
+    LOG.info('Performing database clense.')
+    transaction = connection.begin()
+    for table in reversed(MAGPHYS_NN_METADATA.sorted_tables):
+        connection.execute(table.delete())
+    transaction.commit()
+    LOG.info('Done')
 
 
