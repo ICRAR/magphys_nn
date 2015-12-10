@@ -29,6 +29,14 @@ class NaNValue(Exception):
         return repr(self.value)
 
 
+class InvalidFile(Exception):
+    def __init__(self, value):
+        self.value = value
+        self.message = value
+    def __str__(self):
+        return repr(self.value)
+
+
 def string2float(string_list):
     """
     Converts a string list to a float list
@@ -112,6 +120,8 @@ def parse_file(filename):
 
     skip_lines = 0
 
+    valid_file = False
+
     input_keys_next = False
     input_values_next = False
     input_values_snr_next = False
@@ -137,6 +147,7 @@ def parse_file(filename):
 
                 if line.startswith('# OBSERVED FLUXES (and errors):'):  # 1 Finding first line
                     input_keys_next = True
+                    valid_file = True
                     continue
 
                 if input_keys_next:  # 2 Column headings for input
@@ -224,20 +235,23 @@ def parse_file(filename):
 
     LOG.info('Parsing complete for {0}'.format(filename))
 
-    inputs_dict = import_to_dict(input_keys, string2float(input_values))
-    inputs_snr_dict = import_to_dict(input_keys, string2float(input_values_snr))
+    if valid_file:
+        inputs_dict = import_to_dict(input_keys, string2float(input_values))
+        inputs_snr_dict = import_to_dict(input_keys, string2float(input_values_snr))
 
-    outputs_best_fit_model_dict = import_to_dict(['i_sfh', 'i_ir', 'chi2', 'redshift'], string2float(output_best_fit_model_values))
-    outputs_best_fit_dict = import_to_dict(output_best_fit_keys, string2float(output_best_fit_values))
-    outputs_best_fit_inputs = import_to_dict(input_keys, string2float(output_best_fit_inputs))
+        outputs_best_fit_model_dict = import_to_dict(['i_sfh', 'i_ir', 'chi2', 'redshift'], string2float(output_best_fit_model_values))
+        outputs_best_fit_dict = import_to_dict(output_best_fit_keys, string2float(output_best_fit_values))
+        outputs_best_fit_inputs = import_to_dict(input_keys, string2float(output_best_fit_inputs))
 
-    outputs_median_values = {}
+        outputs_median_values = {}
 
-    # Package the median outputs only into a dict. Can change the '2' here to something else if we want another percentile
-    for k, v in output_dict_percentiles.iteritems():
-        outputs_median_values[k] = string2float(v)[2]
+        # Package the median outputs only into a dict. Can change the '2' here to something else if we want another percentile
+        for k, v in output_dict_percentiles.iteritems():
+            outputs_median_values[k] = string2float(v)[2]
 
-    return inputs_dict, inputs_snr_dict, outputs_median_values
+        return inputs_dict, inputs_snr_dict, outputs_median_values
+    else:
+        raise InvalidFile('No data')
 
 if __name__ == '__main__':
     import argparse
