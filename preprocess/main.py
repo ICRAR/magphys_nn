@@ -108,7 +108,7 @@ def recursive_dir_walk(root, file_action=action_null, shuffle=False):
         for directory in dirnames:
             # Recurse in to the other directories
             LOG.info('Entering {0}'.format(directory))
-            if recursive_dir_walk(directory, file_action, shuffle):
+            if recursive_dir_walk(os.path.join(dirname, directory), file_action, shuffle):
                 # Returned true, we've got what we need
                 return 1
 
