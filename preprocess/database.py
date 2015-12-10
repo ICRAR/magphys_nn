@@ -28,7 +28,7 @@ NN_TRAIN = Table('nn_train',
                  Column('last_updated', TIMESTAMP),
                  Column('type', String),  # Median or Best Fit
                  Column('input', Integer, ForeignKey('input.input_id')),
-                 Column('input_snr', Integer, ForeignKey('input_snr.input_snr_id')),
+                 Column('input_snr', Integer, ForeignKey('input.input_id')),
                  Column('output', Integer, ForeignKey('median_output.median_output_id')),
                  )
 
