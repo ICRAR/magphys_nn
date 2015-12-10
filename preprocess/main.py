@@ -85,7 +85,7 @@ def on_file(filename):
                 global num_added  # ???
                 num_added += 1
 
-                LOG.info('{0} / {1}'.format(num_added, num_to_load))
+                LOG.info('{0} / {1}\r'.format(num_added, num_to_load))
 
                 if num_added == num_to_load:
                     return True
