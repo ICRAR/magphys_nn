@@ -86,7 +86,7 @@ def on_file(filename):
                 global num_added  # ???
                 num_added += 1
 
-                sys.stdout.write("\rFound {0} / {1} files. [{2}]".format(num_added, num_to_load, '#'*(num_added/num_to_load)))
+                sys.stdout.write("\rFound {0} / {1} files. [{2}]".format(num_added, num_to_load, '#'*(num_added/num_to_load*10)))
                 sys.stdout.flush()
 
                 if num_added == num_to_load:
