@@ -233,7 +233,7 @@ def parse_file(filename):
                     output_dict_percentiles[current_param_name] = list(line_inputs)
                     percentile_values_next = False
 
-    LOG.info('Parsing complete for {0}'.format(filename))
+    # LOG.info('Parsing complete for {0}'.format(filename))
 
     if valid_file:
         inputs_dict = import_to_dict(input_keys, string2float(input_values))
