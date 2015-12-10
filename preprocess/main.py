@@ -87,7 +87,7 @@ def on_file(filename):
                 num_added += 1
 
                 # A nice progress bar that looks nice
-                sys.stdout.write("\rFound {0} / {1} files. [{2}]".format(num_added, num_to_load, '#'*(num_added/float(num_to_load)*10)))
+                sys.stdout.write("\rFound {0} / {1} files. [{2}]".format(num_added, num_to_load, '#'*(int(num_added/float(num_to_load)*10))))
                 sys.stdout.flush()
 
                 if num_added == num_to_load:
