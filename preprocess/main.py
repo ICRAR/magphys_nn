@@ -26,6 +26,7 @@ from logger import config_logger
 from parser import parse_file
 from database import add_to_db, exists_in_db
 import datetime
+from parser import NaNValue
 
 LOG = config_logger(__name__)
 
@@ -91,7 +92,10 @@ def on_file(filename):
                     return True
 
             except Exception as e:
-                LOG.error('File {0} {1}'.format(filename, e.message))
+                if type(e) is NaNValue:
+                    pass
+                else:
+                    LOG.error('File {0} {1}'.format(filename, e.message))
 
     return False
 
@@ -103,13 +107,13 @@ def recursive_dir_walk(root, file_action=action_null, shuffle=False):
             rand.shuffle(filenames)
 
         for single_file in filenames:
-            LOG.info('File {0}'.format(single_file))
+            # LOG.info('File {0}'.format(single_file))
             if file_action(os.path.join(dirname, single_file)):
                 return 1
 
         for directory in dirnames:
             # Recurse in to the other directories
-            LOG.info('Entering {0}'.format(directory))
+            # LOG.info('Entering {0}'.format(directory))
             if recursive_dir_walk(os.path.join(dirname, directory), file_action, shuffle):
                 # Returned true, we've got what we need
                 return 1
