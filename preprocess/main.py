@@ -87,25 +87,27 @@ def on_file(filename):
 
                 if num_added is num_to_load:
                     return True
+
             except Exception as e:
                 LOG.error('File {0} {1}'.format(filename, e.message))
-                pass
+
     return False
 
 
 def recursive_dir_walk(root, file_action=action_null, shuffle=False):
     for dirname, dirnames, filenames in os.walk(root):
-        print dirname, dirnames, filenames
         if shuffle:
             rand.shuffle(dirnames)
             rand.shuffle(filenames)
 
         for single_file in filenames:
+            LOG.info('File {0}'.format(single_file))
             if file_action(os.path.join(dirname, single_file)):
                 return 1
 
         for directory in dirnames:
             # Recurse in to the other directories
+            LOG.info('Entering {0}'.format(directory))
             if recursive_dir_walk(directory, file_action, shuffle):
                 # Returned true, we've got what we need
                 return 1
