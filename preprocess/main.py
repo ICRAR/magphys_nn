@@ -17,16 +17,23 @@
 # This program will pull out both the best fit for the results as well as the median.
 #
 
+import os, sys
+
+base_path = os.path.dirname(__file__)
+sys.path.append(os.path.abspath(os.path.join(base_path, '..')))
+
 import os
 import sys
-import config
 import argparse
 import random as rand
-from logger import config_logger
-from parser import parse_file
-from database import add_to_db, exists_in_db
 import datetime
+
+from common import config
+from common.logger import config_logger
+from parser import parse_file
+from common.database import add_to_db, exists_in_db
 from parser import NaNValue
+
 
 LOG = config_logger(__name__)
 
@@ -55,7 +62,7 @@ if os.path.exists(working_directory):
             invalid_folders.append(full_path)
 
     if len(invalid_folders) > 0:
-        LOG.error('The folllowing specified run folders do not exist: ')
+        LOG.error('The following specified run folders do not exist: ')
 
         for invalid in invalid_folders:
             LOG.error('{0}'.format(invalid))
@@ -73,7 +80,7 @@ def on_file(filename):
 
         if not exists_in_db(filename) or config.RELOAD:
             try:
-                inputs, inputs_snr, median_outputs = parse_file(filename)
+                inputs, inputs_snr, median_outputs, output_bfm, output_bf, output_bfi = parse_file(filename)
 
                 details = {}
                 details['run_id'] = current_run_dir
@@ -81,7 +88,7 @@ def on_file(filename):
                 details['last_updated'] = datetime.datetime.now()
                 details['type'] = 'median'
 
-                add_to_db(inputs, inputs_snr, median_outputs, details)
+                add_to_db(inputs, inputs_snr, median_outputs, output_bf, output_bfm, output_bfi, details)
 
                 global num_added  # ???
                 num_added += 1

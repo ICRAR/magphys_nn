@@ -13,9 +13,8 @@
 #         fmu(SFH), fmu(IR), mu, tauv, sSFR, M*, Ldust, T_W^BC, T_C^ISM, xi_C^tot, xi_PAH^tot, xi_MIR^tot, xi_W^tot, tvism, Mdus, SFR
 #         fuv, nuv, u, g, r, y, z, Z, Y, J, H, K, WISEW1, WISEW2, WISEW3, WISEW4, PACS100, PACS160, SPIRE250, SPIRE350, SPIRE500
 #
-import config
-import numpy as np
-from logger import config_logger
+from common import config
+from common.logger import config_logger
 
 LOG = config_logger('__name__')
 
@@ -116,7 +115,7 @@ def parse_file(filename):
     # OUTPUT VALUES
     # Pull the output values out for each of these instances.
 
-    output_dict_percentiles = dict()
+    output_dict_percentiles = {}
 
     skip_lines = 0
 
@@ -245,11 +244,12 @@ def parse_file(filename):
 
         outputs_median_values = {}
 
-        # Package the median outputs only into a dict. Can change the '2' here to something else if we want another percentile
+        # Package the median outputs only into a dict.
+        # Can change the '2' here to something else if we want another percentile
         for k, v in output_dict_percentiles.iteritems():
             outputs_median_values[k] = string2float(v)[2]
 
-        return inputs_dict, inputs_snr_dict, outputs_median_values
+        return inputs_dict, inputs_snr_dict, outputs_median_values, outputs_best_fit_model_dict, outputs_best_fit_dict, outputs_best_fit_inputs
     else:
         raise InvalidFile('No data')
 

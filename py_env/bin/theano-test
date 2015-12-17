@@ -1,24 +1,5 @@
-#!/media/ict310/e1b54023-d95c-4cb5-8c47-e1216b8cc910/Studentship1/env/bin/python2.7
-# -*- coding: utf-8 -*-
-"""IPython Test Suite Runner.
-"""
-
-# The tests can't even run if nose isn't available, so might as well  give the
-# user a civilized error message in that case.
-
-try:
-    import nose
-except ImportError:
-    error = """\
-ERROR: The IPython test suite requires nose to run.
-
-Please install nose on your system first and try again.
-For information on installing nose, see:
-http://somethingaboutorange.com/mrl/projects/nose
-
-Exiting."""
-    import sys
-    print >> sys.stderr, error
-else:
-    import theano
-    theano.test()
+#!/home/ict310/Studentship1/git/magphys_nn/py_env/bin/python
+# EASY-INSTALL-SCRIPT: 'Theano==0.7.0','theano-test'
+__requires__ = 'Theano==0.7.0'
+import pkg_resources
+pkg_resources.run_script('Theano==0.7.0', 'theano-test')
