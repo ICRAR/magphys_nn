@@ -372,8 +372,30 @@ def row2dict(row):
 
 def map_inputrow2list(row, row_snr):
     out_list = [None] * 40
-
+    #out_list = [None] * 20
+    """
     # Normal values, suitable for NN input
+    out_list[0] = row['fuv']
+    out_list[1] = row['nuv']
+    out_list[2] = row['u']
+    out_list[3] = row['g']
+    out_list[4] = row['r']
+    out_list[5] = row['z']
+    out_list[6] = row['Z_']
+    out_list[7] = row['Y']
+    out_list[8] = row['J']
+    out_list[9] = row['H']
+    out_list[10] = row['K']
+    out_list[11] = row['WISEW1']
+    out_list[12] = row['WISEW2']
+    out_list[13] = row['WISEW3']
+    out_list[14] = row['WISEW4']
+    out_list[15] = row['PACS100']
+    out_list[16] = row['PACS160']
+    out_list[17] = row['SPIRE250']
+    out_list[18] = row['SPIRE350']
+    out_list[19] = row['SPIRE500']
+    """
     out_list[0] = row['fuv']
     out_list[2] = row['nuv']
     out_list[4] = row['u']
@@ -394,6 +416,7 @@ def map_inputrow2list(row, row_snr):
     out_list[34] = row['SPIRE250']
     out_list[36] = row['SPIRE350']
     out_list[38] = row['SPIRE500']
+
 
     # SNR values, suitable for NN input
     out_list[1] = row_snr['fuv']
@@ -416,6 +439,7 @@ def map_inputrow2list(row, row_snr):
     out_list[35] = row_snr['SPIRE250']
     out_list[37] = row_snr['SPIRE350']
     out_list[39] = row_snr['SPIRE500']
+    #"""
 
     return out_list
 
@@ -534,7 +558,7 @@ def check_valid_row(row):
     return True
 
 
-def get_train_test_data(num_test, num_train, run_folder, single_value=None):
+def get_train_test_data(num_test, num_train, run_folder, single_value=None, output_type='median'):
 
     total_to_get = num_train+num_test
     count = connection.execute(select([func.count(NN_TRAIN)]).where(NN_TRAIN.c.run_id.endswith(run_folder)).order_by(ffunc.random()).limit(total_to_get)).first()[0]
@@ -558,7 +582,26 @@ def get_train_test_data(num_test, num_train, run_folder, single_value=None):
         # Pull out ID for input, input SNR and output
         input_id = row['input']
         input_snr_id = row['input_snr']
-        output_id = row['output']
+
+        if output_type == 'median':
+            output_id = row['output_median']
+            output_row = connection.execute(select([MEDIAN_OUTPUT]).where(MEDIAN_OUTPUT.c.median_output_id == output_id)).first()
+            row_outputs = map_outputrow2list(output_row)
+
+        elif output_type == 'best_fit':
+            output_id = row['output_best_fit']
+            output_row = connection.execute(select([BEST_FIT_OUTPUT]).where(BEST_FIT_OUTPUT.c.best_fit_output_id == output_id)).first()
+            row_outputs = map_best_fit_output2list(output_row)
+
+        elif output_type == 'best_fit_model':
+            output_id = row['output_best_fit_model']
+            output_row = connection.execute(select([BEST_FIT_MODEL]).where(BEST_FIT_MODEL.c.best_fit_model_id == output_id)).first()
+            row_outputs = map_best_fit_model_output2list(output_row)
+
+        elif output_type == 'best_fit_inputs':
+            output_id = row['output_best_fit_inputs']
+            output_row = connection.execute(select([BEST_FIT_OUTPUT_INPUT]).where(BEST_FIT_OUTPUT_INPUT.c.best_fit_output_input_id == output_id)).first()
+            row_outputs = map_best_fit_output_inputs2list(output_row)
 
         input_row = connection.execute(select([INPUT]).where(INPUT.c.input_id == input_id)).first()
 
@@ -572,10 +615,6 @@ def get_train_test_data(num_test, num_train, run_folder, single_value=None):
             # This row contains some invalid data (such as -999s)
             # This data is not 0 and thus is still loaded by the preprocessor
             continue
-
-        output_row = connection.execute(select([MEDIAN_OUTPUT]).where(MEDIAN_OUTPUT.c.median_output_id == output_id)).first()
-
-        row_outputs = map_outputrow2list(output_row)
 
         if single_value is not None:  # If we only want to use a single value
             row_outputs = [row_outputs[single_value]]

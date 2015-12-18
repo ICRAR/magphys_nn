@@ -16,10 +16,8 @@ import random as rand
 
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, MaxoutDense, Activation
-from keras.layers.advanced_activations import LeakyReLU
-from keras.layers.recurrent import *
 from keras.callbacks import History
-from keras.optimizers import SGD
+from keras.optimizers import *
 import numpy as np
 from common.database import get_train_test_data
 
@@ -86,7 +84,11 @@ def normalise_2Darray(array):
 def denormalise_value(value, minimum, maximum):
     return value * (maximum - minimum) + minimum
 
-test_in, test_out, train_in, train_out = get_train_test_data(500, 10000, '06')
+# median = 32
+# best_fit = 16
+# best_fit_model = 4
+# best_fit_inputs = 20. That weird line in the fit file that contains different values for the standard inputs.
+test_in, test_out, train_in, train_out = get_train_test_data(500, 10000, '06', output_type='median')
 
 train_in_min, train_in_max, train_in = normalise_2Darray(train_in)
 train_out_min, train_out_max, train_out = normalise_2Darray(train_out)
@@ -94,38 +96,25 @@ train_out_min, train_out_max, train_out = normalise_2Darray(train_out)
 test_in_min, test_in_max, test_in = normalise_2Darray(test_in)
 test_out_min, test_out_max, test_out = normalise_2Darray(test_out)
 
-"""
-train_in_m, train_in_r, train_in = standardise_2Darray(train_in)
-train_out_m, train_out_r, train_out = standardise_2Darray(train_out)
-
-test_in_m, test_in_r, test_in = standardise_2Darray(test_in)
-test_out_m, test_out_r, test_out = standardise_2Darray(test_out)
-
-print train_in[0][0]
-print train_out[0][0]
-print test_in[0][0]
-print test_out[0][0]
-print
-print test_in_r[0]
-print test_out_r[0]
-print train_in_r[0]
-print train_out_r[0]
-print
-print test_in_m[0]
-print test_out_m[0]
-print train_in_m[0]
-print train_out_m[0]
-"""
-
 model = Sequential()
 optimiser = SGD(lr=0.01, momentum=0.0, decay=0, nesterov=True)
+#optimiser = Adagrad(lr=0.01, epsilon=1e-06)
+#optimiser = Adadelta(lr=1.0, rho=0.95, epsilon=1e-06)
+#optimiser = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
 
-model.add(Dense(output_dim=40, input_dim=40, init='uniform', activation='sigmoid'))
-model.add(Dense(output_dim=40, input_dim=40, init='uniform', activation='sigmoid'))
-model.add(Dense(output_dim=40, input_dim=40, init='uniform', activation='sigmoid'))
-model.add(Dense(output_dim=32, input_dim=40, init='uniform', activation='linear'))
 
-model.compile(loss='mse', optimizer=optimiser)
+model.add(Dense(output_dim=60, input_dim=40, init='he_normal', activation='tanh'))
+model.add(Dense(output_dim=50, input_dim=60, init='he_normal', activation='relu'))
+model.add(Dense(output_dim=40, input_dim=50, init='he_normal', activation='relu'))
+model.add(Dense(output_dim=32, input_dim=40, init='he_normal', activation='linear'))
+"""
+
+model.add(Dense(output_dim=60, input_dim=40, init='glorot_uniform', activation='tanh'))
+model.add(Dense(output_dim=50, input_dim=60, init='glorot_uniform', activation='tanh'))
+model.add(Dense(output_dim=40, input_dim=50, init='glorot_uniform', activation='tanh'))
+model.add(Dense(output_dim=32, input_dim=40, init='glorot_uniform', activation='tanh'))
+"""
+model.compile(loss='rmse', optimizer=optimiser)
 
 print "Compiled"
 
@@ -135,12 +124,12 @@ trained = False
 total_epoch = 0
 while not trained:
 
-    history = model.fit(train_in, train_out, batch_size=500, nb_epoch=100, show_accuracy=True, verbose=True, callbacks=[history])
+    history = model.fit(train_in, train_out, batch_size=500, nb_epoch=50, validation_split=0.1, show_accuracy=True, verbose=True, callbacks=[history])
     current_loss = history.totals['loss']
 
     total_epoch += 1
     print history.totals
-    if history.totals['loss'] < 0.001 or total_epoch > 100:
+    if history.totals['loss'] < 0.001 or total_epoch > 50:
         trained = True
 
     for i in range(0, 10):
@@ -148,7 +137,7 @@ while not trained:
         ans = model.predict(np.array([test_in[test_to_use]]))
         print 'Test {0} for epoch {1}'.format(i, total_epoch)
         print 'Output   Correct'
-        for a in range(0, 32):
+        for a in range(0, len(test_out[test_to_use])):
             print '{0}  =   {1}'.format(denormalise_value(ans[0][a], train_out_min[a], train_out_max[a]), denormalise_value(test_out[test_to_use][a], test_out_min[a], test_out_max[a]))
         print
         print
