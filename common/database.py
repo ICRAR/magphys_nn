@@ -6,13 +6,14 @@
 # SQLAlchemy related functions for the preprocessor
 #
 from sqlalchemy.engine import create_engine
-from sqlalchemy import MetaData, Table, Column, Integer, String, Float, TIMESTAMP, ForeignKey, BigInteger
+from sqlalchemy import MetaData, Table, Column, Integer, String, Float, TIMESTAMP, ForeignKey, BigInteger, DateTime
 from sqlalchemy import func
 from sqlalchemy.sql.expression import select, func as ffunc
 
 from common import config
 from logger import config_logger
 import numpy as np
+import os
 
 
 LOG = config_logger(__name__)
@@ -85,9 +86,15 @@ NN_TRAIN = Table('nn_train',
                  Column('run_id', BigInteger),
                  Column('filename', String),
                  Column('last_updated', TIMESTAMP),
-                 Column('type', String),  # Median or Best Fit
+                 Column('redshift', Float),
                  Column('input', Integer, ForeignKey('input.input_id')),
                  Column('input_snr', Integer, ForeignKey('input.input_id')),
+                 
+                 # Be cheeky and use the pre-existing Input table. This is seriously bad design ;)
+                 # Things are in the same format though, so whatever.
+                 Column('input_process_data', Integer, ForeignKey('input.input_id')),
+                 Column('input_process_data_snr', Integer, ForeignKey('input.input_id')),
+                 
                  Column('output_median', Integer, ForeignKey('median_output.median_output_id')),
                  Column('output_best_fit', Integer, ForeignKey('best_fit_output.best_fit_output_id')),
                  Column('output_best_fit_model', Integer, ForeignKey('best_fit_model_output.best_fit_model_id')),
@@ -213,10 +220,69 @@ BEST_FIT_MODEL = Table('best_fit_model_output',
                        )
 
 
+def add_process_data_to_db(galaxy, run_id):
+
+    input_key = connection.execute(INPUT.insert().values(type='process',
+                                    fuv=galaxy['fuv'],
+                                    nuv=galaxy['nuv'],
+                                    u=galaxy['u'],
+                                    g=galaxy['g'],
+                                    r=galaxy['r'],
+                                    z=galaxy['z'],
+                                    Z_=galaxy['Z'],
+                                    Y=galaxy['Y'],
+                                    J=galaxy['J'],
+                                    H=galaxy['H'],
+                                    K=galaxy['K'],
+                                    WISEW1=galaxy['WISEW1'],
+                                    WISEW2=galaxy['WISEW2'],
+                                    WISEW3=galaxy['WISEW3'],
+                                    WISEW4=galaxy['WISEW4'],
+                                    PACS100=galaxy['PACS100'],
+                                    PACS160=galaxy['PACS160'],
+                                    SPIRE250=galaxy['SPIRE250'],
+                                    SPIRE350=galaxy['SPIRE350'],
+                                    SPIRE500=galaxy['SPIRE500']
+                                    )).inserted_primary_key[0]
+
+    input_snr_key = connection.execute(INPUT.insert().values(type='process_snr',
+                                    fuv=galaxy['fuv_snr'],
+                                    nuv=galaxy['nuv_snr'],
+                                    u=galaxy['u_snr'],
+                                    g=galaxy['g_snr'],
+                                    r=galaxy['r_snr'],
+                                    z=galaxy['z_snr'],
+                                    Z_=galaxy['Z_snr'],
+                                    Y=galaxy['Y_snr'],
+                                    J=galaxy['J_snr'],
+                                    H=galaxy['H_snr'],
+                                    K=galaxy['K_snr'],
+                                    WISEW1=galaxy['WISEW1_snr'],
+                                    WISEW2=galaxy['WISEW2_snr'],
+                                    WISEW3=galaxy['WISEW3_snr'],
+                                    WISEW4=galaxy['WISEW4_snr'],
+                                    PACS100=galaxy['PACS100_snr'],
+                                    PACS160=galaxy['PACS160_snr'],
+                                    SPIRE250=galaxy['SPIRE250_snr'],
+                                    SPIRE350=galaxy['SPIRE350_snr'],
+                                    SPIRE500=galaxy['SPIRE500_snr']
+                                    )).inserted_primary_key[0]
+    
+    connection.execute(NN_TRAIN.insert().values(run_id=run_id,
+                                             last_updated=func.now(),
+                                             redshift=galaxy['redshift'],
+                                             galaxy_number=galaxy['galaxy_number'],
+                                             input_process_data=input_key,
+                                             input_process_data_snr=input_snr_key
+                                             ))
+
+
 def add_to_db(input, input_snr, output, best_fit_output, best_fit_model, best_fit_output_input, details):
+
     transaction = connection.begin()
 
-    input_key = connection.execute(INPUT.insert().values(fuv=input['fuv'],
+    input_key = connection.execute(INPUT.insert().values(type='fit',
+                    fuv=input['fuv'],
                     nuv=input['nuv'],
                     u=input['u'],
                     g=input['g'],
@@ -238,7 +304,8 @@ def add_to_db(input, input_snr, output, best_fit_output, best_fit_model, best_fi
                     SPIRE500=input['SPIRE500']
                     )).inserted_primary_key[0]
     
-    input_snr_key = connection.execute(INPUT.insert().values(fuv=input_snr['fuv'],
+    input_snr_key = connection.execute(INPUT.insert().values(type='fit_snr',
+                        fuv=input_snr['fuv'],
                         nuv=input_snr['nuv'],
                         u=input_snr['u'],
                         g=input_snr['g'],
@@ -340,10 +407,12 @@ def add_to_db(input, input_snr, output, best_fit_output, best_fit_model, best_fi
                                         redshift=best_fit_model['redshift']
                                         )).inserted_primary_key[0]
 
-    connection.execute(NN_TRAIN.insert().values(run_id=details['run_id'],
+    head, tail = os.path.split(details['filename'])
+
+    connection.execute(NN_TRAIN.update().where(NN_TRAIN.c.galaxy_number == float(tail.split('.fit')))
+                             .values(run_id=details['run_id'],
                              filename=details['filename'],
-                             last_updated=details['last_updated'],
-                             type=details['type'],
+                             last_updated=func.now(),
                              input=input_key,
                              input_snr=input_snr_key,
                              output_median=output_key,

@@ -25,13 +25,11 @@ sys.path.append(os.path.abspath(os.path.join(base_path, '..')))
 import os
 import sys
 import argparse
-import random as rand
 import datetime
 
-from common import config
 from common.logger import config_logger
-from parser import parse_file
-from common.database import add_to_db, exists_in_db
+from parser import parse_fit_file, parse_process_file
+from common.database import add_to_db, add_process_data_to_db
 from parser import NaNValue
 
 
@@ -49,6 +47,7 @@ run_ids = args['run_id']
 
 run_dirs = []
 num_added = 0
+sh_files = 0
 current_run_dir = ''
 
 # Is everything valid?
@@ -75,45 +74,55 @@ def action_null(filename):
     return False
 
 
+def print_progress():
+    # A nice progress bar that looks nice
+    sys.stdout.write("\rFound {0} / {1} files ({3} .sh files) [{2}]".format(num_added, num_to_load, '#'*(int(num_added/float(num_to_load)*10)), sh_files))
+    sys.stdout.flush()
+
+
 def on_file(filename):
+
+    if filename.endswith('.sh'):
+        try:
+            galaxies = parse_process_file(filename)
+
+            for galaxy in galaxies:
+                add_process_data_to_db(galaxy, current_run_dir)
+
+        except Exception as e:
+            LOG.error('File {0} {1}'.format(filename, e.message))
+
     if filename.endswith('.fit'):
+        try:
+            inputs, inputs_snr, median_outputs, output_bfm, output_bf, output_bfi = parse_fit_file(filename)
 
-        if not exists_in_db(filename) or config.RELOAD:
-            try:
-                inputs, inputs_snr, median_outputs, output_bfm, output_bf, output_bfi = parse_file(filename)
+            details = {}
+            details['run_id'] = current_run_dir
+            details['filename'] = filename
 
-                details = {}
-                details['run_id'] = current_run_dir
-                details['filename'] = filename
-                details['last_updated'] = datetime.datetime.now()
-                details['type'] = 'median'
+            add_to_db(inputs, inputs_snr, median_outputs, output_bf, output_bfm, output_bfi, details)
 
-                add_to_db(inputs, inputs_snr, median_outputs, output_bf, output_bfm, output_bfi, details)
+            global num_added  # ??? why does this generate an error without this global part?
+            num_added += 1
 
-                global num_added  # ???
-                num_added += 1
+            print_progress()
 
-                # A nice progress bar that looks nice
-                sys.stdout.write("\rFound {0} / {1} files. [{2}]".format(num_added, num_to_load, '#'*(int(num_added/float(num_to_load)*10))))
-                sys.stdout.flush()
+            if num_added == num_to_load:
+                return True
 
-                if num_added == num_to_load:
-                    return True
-
-            except Exception as e:
-                if type(e) is NaNValue:
-                    pass
-                else:
-                    LOG.error('File {0} {1}'.format(filename, e.message))
+        except Exception as e:
+            if type(e) is NaNValue:
+                pass
+            else:
+                LOG.error('File {0} {1}'.format(filename, e.message))
 
     return False
 
 
-def recursive_dir_walk(root, file_action=action_null, shuffle=False):
+def recursive_dir_walk(root, file_action=action_null):
     for dirname, dirnames, filenames in os.walk(root):
-        if shuffle:
-            rand.shuffle(dirnames)
-            rand.shuffle(filenames)
+
+        filenames.sort(reverse=True)  # process_data.sh first!
 
         for single_file in filenames:
             # LOG.info('File {0}'.format(single_file))
@@ -123,7 +132,7 @@ def recursive_dir_walk(root, file_action=action_null, shuffle=False):
         for directory in dirnames:
             # Recurse in to the other directories
             # LOG.info('Entering {0}'.format(directory))
-            if recursive_dir_walk(os.path.join(dirname, directory), file_action, shuffle):
+            if recursive_dir_walk(os.path.join(dirname, directory), file_action):
                 # Returned true, we've got what we need
                 return 1
 
@@ -131,10 +140,9 @@ def recursive_dir_walk(root, file_action=action_null, shuffle=False):
 
 # Get the required files from each of the run directories
 for directory in run_dirs:
-
     # on_file is called when we hit a file. In that function we work out what to do with the file.
     current_run_dir = directory
-    if recursive_dir_walk(directory, on_file, config.SHUFFLE):
+    if recursive_dir_walk(directory, on_file):
         LOG.info('Found all required files {0}. Runs added to database.'.format(num_added))
     else:
         LOG.info('Could not add the desired number of files. Added {0} instead'.format(num_added))
