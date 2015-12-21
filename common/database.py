@@ -417,7 +417,7 @@ def add_to_db(input, input_snr, output, best_fit_output, best_fit_model, best_fi
 
     head, tail = os.path.split(details['filename'])
 
-    connection.execute(NN_TRAIN.update().where(NN_TRAIN.c.galaxy_number == int(tail.split('.fit')))
+    connection.execute(NN_TRAIN.update().where(NN_TRAIN.c.galaxy_number == int(tail.split('.fit')[0]))
                              .values(run_id=details['run_id'],
                              filename=details['filename'],
                              last_updated=func.now(),
@@ -679,6 +679,8 @@ def get_train_test_data(num_test, num_train, run_folder, single_value=None, outp
             output_id = row['output_best_fit_inputs']
             output_row = connection.execute(select([BEST_FIT_OUTPUT_INPUT]).where(BEST_FIT_OUTPUT_INPUT.c.best_fit_output_input_id == output_id)).first()
             row_outputs = map_best_fit_output_inputs2list(output_row)
+        else:
+            raise Exception('Invalid output type')
 
         input_row = connection.execute(select([INPUT]).where(INPUT.c.input_id == input_id)).first()
 
