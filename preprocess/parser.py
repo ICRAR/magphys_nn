@@ -26,7 +26,7 @@ import os
 LOG = config_logger('__name__')
 
 process_data_input_key = [
-    'galaxy_name',
+    'galaxy_number',
     'redshift',
     'fuv',
     'nuv',
