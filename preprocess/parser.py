@@ -158,7 +158,7 @@ def check_directory(directory):
     :param directory:
     :return:
     """
-    _, _, files = os.walk(directory)
+    run_dir, dirs, files = os.walk(directory)
 
     for single_file in files:
         if single_file.endswith('.fit'):
@@ -176,7 +176,7 @@ def parse_process_file(filename):
     """
 
     # First things first! These values are useless unless theres at least one .fit file in the same directory
-    path, _ = os.path.split(filename)
+    path, filename_t = os.path.split(filename)
 
     if not check_directory(path):
         raise InvalidFile('No .fit files found in directory {0}. Cannot parse process_data.sh'.format(path))
@@ -340,12 +340,12 @@ def parse_fit_file(filename):
 
     # Don't worry about the 'might be referenced before assignment' bits here. If valid_file = true, then these files have been found
     if valid_file:
-        inputs_dict = dict(zip((input_keys, string2float(input_values))))
-        inputs_snr_dict = dict(zip((input_keys, string2float(input_values_snr))))
+        inputs_dict = import_to_dict(input_keys, string2float(input_values))
+        inputs_snr_dict = import_to_dict(input_keys, string2float(input_values_snr))
 
-        outputs_best_fit_model_dict = dict(zip((['i_sfh', 'i_ir', 'chi2', 'redshift'], string2float(output_best_fit_model_values))))
-        outputs_best_fit_dict = dict(zip((output_best_fit_keys, string2float(output_best_fit_values))))
-        outputs_best_fit_inputs = dict(zip((input_keys, string2float(output_best_fit_inputs))))
+        outputs_best_fit_model_dict = import_to_dict(['i_sfh', 'i_ir', 'chi2', 'redshift'], string2float(output_best_fit_model_values))
+        outputs_best_fit_dict = import_to_dict(output_best_fit_keys, string2float(output_best_fit_values))
+        outputs_best_fit_inputs = import_to_dict(input_keys, string2float(output_best_fit_inputs))
 
         outputs_median_values = {}
 
