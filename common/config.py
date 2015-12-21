@@ -20,4 +20,4 @@ SHUFFLE = False
 ALLOW_NAN = False
 
 # The login string for the database. Must be a valid SQL Alchemy database string!
-DB_LOGIN = 'sqlite:////home/ict310/Studentship1/git/magphys_nn/preprocess/new_db.db'
+DB_LOGIN = 'sqlite:///./preprocess/Database.db'

@@ -5,6 +5,12 @@
 #
 # SQLAlchemy related functions for the preprocessor
 #
+
+import os, sys
+
+base_path = os.path.dirname(__file__)
+sys.path.append(os.path.abspath(os.path.join(base_path, '..')))
+
 from sqlalchemy.engine import create_engine
 from sqlalchemy import MetaData, Table, Column, Integer, String, Float, TIMESTAMP, ForeignKey, BigInteger, DateTime
 from sqlalchemy import func
@@ -83,10 +89,11 @@ best_fit_output_parameter_name_map = {
 NN_TRAIN = Table('nn_train',
                  MAGPHYS_NN_METADATA,
                  Column('train_id', Integer, primary_key=True, autoincrement=True),
-                 Column('run_id', BigInteger),
-                 Column('filename', String),
+                 Column('run_id', String(30)),
+                 Column('filename', String(200)),
                  Column('last_updated', TIMESTAMP),
                  Column('redshift', Float),
+                 Column('galaxy_number', Integer),
                  Column('input', Integer, ForeignKey('input.input_id')),
                  Column('input_snr', Integer, ForeignKey('input.input_id')),
                  
@@ -409,7 +416,7 @@ def add_to_db(input, input_snr, output, best_fit_output, best_fit_model, best_fi
 
     head, tail = os.path.split(details['filename'])
 
-    connection.execute(NN_TRAIN.update().where(NN_TRAIN.c.galaxy_number == float(tail.split('.fit')))
+    connection.execute(NN_TRAIN.update().where(NN_TRAIN.c.galaxy_number == int(tail.split('.fit')))
                              .values(run_id=details['run_id'],
                              filename=details['filename'],
                              last_updated=func.now(),
