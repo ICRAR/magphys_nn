@@ -197,7 +197,7 @@ def parse_process_file(filename):
                     continue
 
                 # Remove this crap
-                stripped.strip('echo "').strip('" >> mygals.dat')
+                stripped.strip('echo ').strip(' >> mygals.dat').strip('\"').strip()  # Lots of stripping ;)
 
                 values = stripped.split()
 
