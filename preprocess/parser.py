@@ -172,7 +172,7 @@ def parse_process_file(filename):
     # First things first! These values are useless unless theres at least one .fit file in the same directory
     path, _ = os.path.split(filename)
 
-    if not check_directory:
+    if not check_directory(path):
         raise InvalidFile('No .fit files found in directory {0}. Cannot parse process_data.sh'.format(path))
 
     galaxy_next = False

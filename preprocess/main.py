@@ -90,9 +90,9 @@ def on_file(filename):
                 add_process_data_to_db(galaxy, current_run_dir)
 
         except Exception as e:
-            LOG.error('File {0} {1}'.format(filename, e.message))
+            LOG.error('.sh: File {0} {1}'.format(filename, e.message))
 
-    if filename.endswith('.fit'):
+    elif filename.endswith('.fit'):
         try:
             inputs, inputs_snr, median_outputs, output_bfm, output_bf, output_bfi = parse_fit_file(filename)
 
@@ -114,7 +114,7 @@ def on_file(filename):
             if type(e) is NaNValue:
                 pass
             else:
-                LOG.error('File {0} {1}'.format(filename, e.message))
+                LOG.error('.fit: File {0} {1}'.format(filename, e.message))
 
     return False
 
