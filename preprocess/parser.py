@@ -197,11 +197,10 @@ def parse_process_file(filename):
                     continue
 
                 # Remove this crap
-                stripped.strip('echo ').strip(' >> mygals.dat').strip('\"').strip()  # Lots of stripping ;)
-
-                values = stripped.split()
-
-                galaxies.append(dict(zip(process_data_input_key, values)))
+                values = stripped[6:-14].split()
+                # 6 = echo "
+                # -14 = " > mygals.dat
+                galaxies.append(import_to_dict(process_data_input_key, values))
 
             if line.startswith('echo "# Header" > mygals.dat'):
                 galaxy_next = True
