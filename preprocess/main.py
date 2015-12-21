@@ -89,8 +89,13 @@ def on_file(filename):
             for galaxy in galaxies:
                 add_process_data_to_db(galaxy, current_run_dir)
 
+            global sh_files
+            sh_files += 1
+
+            print_progress()
+
         except Exception as e:
-            LOG.exception('.sh: File {0} {1}'.format(filename, e.message))
+            LOG.error('.sh: File {0} {1}'.format(filename, e.message))
 
     elif filename.endswith('.fit'):
         try:
@@ -114,7 +119,7 @@ def on_file(filename):
             if type(e) is NaNValue:
                 pass
             else:
-                LOG.exception('.fit: File {0} {1}'.format(filename, e.message))
+                LOG.error('.fit: File {0} {1}'.format(filename, e.message))
 
     return False
 
