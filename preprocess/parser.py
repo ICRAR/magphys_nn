@@ -152,13 +152,14 @@ def check_values(values):
 
     return True
 
+
 def check_directory(directory):
     """
     Checks a directory and returns true if it contains at least one .fit file
     :param directory:
     :return:
     """
-    run_dir, dirs, files = os.walk(directory)
+    files = os.listdir(directory)
 
     for single_file in files:
         if single_file.endswith('.fit'):
