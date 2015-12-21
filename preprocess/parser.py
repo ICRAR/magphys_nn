@@ -67,7 +67,9 @@ process_data_input_key = [
     'PACS160_snr',
     'SPIRE250_snr',
     'SPIRE350_snr',
-    'SPIRE500_snr'
+    'SPIRE500_snr',
+    'Unknown1',
+    'Unknown2'
 ]
 
 class NaNValue(Exception):
