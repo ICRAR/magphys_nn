@@ -450,8 +450,9 @@ def row2dict(row):
 def map_inputrow2list(row, row_snr):
     out_list = [None] * 40
     #out_list = [None] * 20
-    """
+    #"""
     # Normal values, suitable for NN input
+    """
     out_list[0] = row['fuv']
     out_list[1] = row['nuv']
     out_list[2] = row['u']
@@ -472,6 +473,27 @@ def map_inputrow2list(row, row_snr):
     out_list[17] = row['SPIRE250']
     out_list[18] = row['SPIRE350']
     out_list[19] = row['SPIRE500']
+
+    out_list[20] = row_snr['fuv']
+    out_list[21] = row_snr['nuv']
+    out_list[22] = row_snr['u']
+    out_list[23] = row_snr['g']
+    out_list[24] = row_snr['r']
+    out_list[25] = row_snr['z']
+    out_list[26] = row_snr['Z_']
+    out_list[27] = row_snr['Y']
+    out_list[28] = row_snr['J']
+    out_list[29] = row_snr['H']
+    out_list[30] = row_snr['K']
+    out_list[31] = row_snr['WISEW1']
+    out_list[32] = row_snr['WISEW2']
+    out_list[33] = row_snr['WISEW3']
+    out_list[34] = row_snr['WISEW4']
+    out_list[35] = row_snr['PACS100']
+    out_list[36] = row_snr['PACS160']
+    out_list[37] = row_snr['SPIRE250']
+    out_list[38] = row_snr['SPIRE350']
+    out_list[39] = row_snr['SPIRE500']
     """
     out_list[0] = row['fuv']
     out_list[2] = row['nuv']
@@ -516,7 +538,6 @@ def map_inputrow2list(row, row_snr):
     out_list[35] = row_snr['SPIRE250']
     out_list[37] = row_snr['SPIRE350']
     out_list[39] = row_snr['SPIRE500']
-    #"""
 
     return out_list
 
@@ -635,24 +656,28 @@ def check_valid_row(row):
     return True
 
 
-def get_train_test_data(num_test, num_train, run_folder, single_value=None, output_type='median'):
+def get_train_test_data(num_test, num_train, run_folder, single_value=None, output_type='median', repeat_redshift=1):
 
     total_to_get = num_train+num_test
-    count = connection.execute(select([func.count(NN_TRAIN)]).where(NN_TRAIN.c.run_id.endswith(run_folder)).order_by(ffunc.random()).limit(total_to_get)).first()[0]
+    count = connection.execute(select([func.count(NN_TRAIN)]).where(NN_TRAIN.c.run_id.endswith(run_folder)).order_by(ffunc.random()).limit(total_to_get + total_to_get*0.05)).first()[0]
 
+    print '{0} entries available'.format(count)
     if count < total_to_get:
         print "Error {0}".format(count)
-        return None, None, None, None
+        return None, None, None, None, None
 
+    print 'Getting indexes for {0} entries'.format(count)
     result = connection.execute(select([NN_TRAIN]).where(NN_TRAIN.c.run_id.endswith(run_folder)).order_by(ffunc.random())).fetchall()
 
     # Train and test sets are now separated, need to get the actual data now.
 
     all_in = []
     all_out = []
+    galaxy_ids = []
 
     added_count = 0
 
+    print 'Getting input and output data for {0}'.format(output_type)
     for row in result:
         # Make new dict for this row
 
@@ -663,21 +688,29 @@ def get_train_test_data(num_test, num_train, run_folder, single_value=None, outp
         if output_type == 'median':
             output_id = row['output_median']
             output_row = connection.execute(select([MEDIAN_OUTPUT]).where(MEDIAN_OUTPUT.c.median_output_id == output_id)).first()
+            if not output_row:
+                continue
             row_outputs = map_outputrow2list(output_row)
 
         elif output_type == 'best_fit':
             output_id = row['output_best_fit']
             output_row = connection.execute(select([BEST_FIT_OUTPUT]).where(BEST_FIT_OUTPUT.c.best_fit_output_id == output_id)).first()
+            if not output_row:
+                continue
             row_outputs = map_best_fit_output2list(output_row)
 
         elif output_type == 'best_fit_model':
             output_id = row['output_best_fit_model']
             output_row = connection.execute(select([BEST_FIT_MODEL]).where(BEST_FIT_MODEL.c.best_fit_model_id == output_id)).first()
+            if not output_row:
+                continue
             row_outputs = map_best_fit_model_output2list(output_row)
 
         elif output_type == 'best_fit_inputs':
             output_id = row['output_best_fit_inputs']
             output_row = connection.execute(select([BEST_FIT_OUTPUT_INPUT]).where(BEST_FIT_OUTPUT_INPUT.c.best_fit_output_input_id == output_id)).first()
+            if not output_row:
+                continue
             row_outputs = map_best_fit_output_inputs2list(output_row)
         else:
             raise Exception('Invalid output type')
@@ -686,29 +719,33 @@ def get_train_test_data(num_test, num_train, run_folder, single_value=None, outp
 
         input_snr_row = connection.execute(select([INPUT]).where(INPUT.c.input_id == input_snr_id)).first()
 
+        if not input_row or not input_snr_row:
+            continue
+
         # Interleave the rows. Done manually (ugh).
         # Need this to ensure everything is in the right order for the NN to process
         row_inputs = map_inputrow2list(input_row, input_snr_row)
 
         if not check_valid_row(input_row):
-            # This row contains some invalid data (such as -999s)
-            # This data is not 0 and thus is still loaded by the preprocessor
+            # This row contains some invalid data (such as -999s or 0s)
             continue
 
         if single_value is not None:  # If we only want to use a single value
             row_outputs = [row_outputs[single_value]]
-        """
-        print input_row[0],  input_snr_row[0]
-        print row_inputs
-        print
-        print output_row[0]
-        print row_outputs
-        """
+
+        # Get redshift
+        for i in range(0, repeat_redshift):
+            row_inputs.insert(0, row['redshift'])
+
+        galaxy_ids.append(row['galaxy_number'])
 
         all_in.append(row_inputs)
         all_out.append(row_outputs)
 
         added_count += 1
+
+        sys.stdout.write('\rProgress: {0}/{1} {2:4.1f}%'.format(added_count, total_to_get, added_count/float(total_to_get)*100))
+        sys.stdout.flush()
 
         if added_count == total_to_get:
             break
@@ -716,7 +753,7 @@ def get_train_test_data(num_test, num_train, run_folder, single_value=None, outp
     if added_count < total_to_get:
         print "Could not get {0} good readings. Got {1} instead.".format(total_to_get, added_count)
     # test in, test out, train in, train out
-    return np.array(all_in[:num_test]), np.array(all_out[:num_test]), np.array(all_in[num_test:]), np.array(all_out[num_test:])
+    return np.array(all_in[:num_test]), np.array(all_out[:num_test]), np.array(all_in[num_test:]), np.array(all_out[num_test:]), galaxy_ids
 
 if __name__ == '__main__':
 
