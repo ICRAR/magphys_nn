@@ -25,7 +25,7 @@ import os
 
 LOG = config_logger('__name__')
 
-process_data_input_key = [
+input_Jy_keys = [
     'galaxy_number',
     'redshift',
     'fuv',
@@ -71,6 +71,7 @@ process_data_input_key = [
     'Unknown',
     'Unknown_snr'
 ]
+
 
 class NaNValue(Exception):
     """
@@ -202,7 +203,7 @@ def parse_process_file(filename):
                 values = stripped[6:-14].split()
                 # 6 = echo "
                 # -14 = " > mygals.dat
-                galaxies.append(import_to_dict(process_data_input_key, values))
+                galaxies.append(import_to_dict(input_Jy_keys, values))
 
             if line.startswith('echo "# Header" > mygals.dat'):
                 galaxy_next = True
