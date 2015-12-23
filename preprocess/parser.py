@@ -36,7 +36,7 @@ input_Jy_keys = [
     'u',
     'u_snr',
     'g',
-    'g_snr'
+    'g_snr',
     'r',
     'r_snr',
     'z',
@@ -365,14 +365,9 @@ def parse_fit_file(filename):
         raise InvalidFile('No data')
 
 if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-f', dest='file', nargs=1, help='Path to the fit file')
+    print input_Jy_keys
+    print len(input_Jy_keys)
 
-    args = vars(parser.parse_args())
-    fit_file = args['file'][0]
-
-    parse_fit_file(fit_file)
 
 
 
