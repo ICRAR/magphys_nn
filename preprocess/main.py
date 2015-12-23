@@ -47,7 +47,7 @@ num_to_load = args['num_to_load'][0]
 run_ids = args['run_id']
 
 # Fire up the DB based on our command line args
-db_init(config.DB_LOGIN + args['database'])
+db_init(config.DB_LOGIN + args['database'][0])
 
 run_dirs = []
 num_added = 0
@@ -80,7 +80,7 @@ def action_null(filename):
 
 def print_progress():
     # A nice progress bar that looks nice
-    sys.stdout.write("\rFound {0} / {1} files ({3} .sh files) [{2}]".format(num_added, num_to_load, '#'*(int(num_added/float(num_to_load)*10)), sh_files))
+    sys.stdout.write("\r{3}: Found {0} / {1} files ({2} .sh files)".format(num_added, num_to_load, sh_files, current_run_dir))
     sys.stdout.flush()
 
 
