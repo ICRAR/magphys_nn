@@ -26,6 +26,7 @@ import os
 LOG = config_logger('__name__')
 
 input_Jy_keys = [
+
     'galaxy_number',
     'redshift',
     'fuv',
@@ -69,7 +70,7 @@ input_Jy_keys = [
     'SPIRE500',
     'SPIRE500_snr',
     'Unknown',
-    'Unknown_snr'
+    'Unknown_snr',
 ]
 
 
@@ -203,6 +204,7 @@ def parse_process_file(filename):
                 values = stripped[6:-14].split()
                 # 6 = echo "
                 # -14 = " > mygals.dat
+                print len(input_Jy_keys), len(values)
                 galaxies.append(import_to_dict(input_Jy_keys, values))
 
             if line.startswith('echo "# Header" > mygals.dat'):
