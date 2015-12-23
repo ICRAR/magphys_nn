@@ -30,7 +30,7 @@ import datetime
 from common.logger import config_logger
 from parser import parse_fit_file, parse_process_file
 from common.database import add_to_db, add_process_data_to_db, db_init
-from parser import NaNValue
+from parser import NaNValue, InvalidFile
 import common.config as config
 
 
@@ -99,7 +99,10 @@ def on_file(filename):
             print_progress()
 
         except Exception as e:
-            LOG.exception('.sh: File {0} {1}'.format(filename, e.message))
+            if type(e) is InvalidFile:
+                LOG.error('.fit: File {0} {1}'.format(filename, e.message))
+            else:
+                LOG.exception('.sh: File {0} {1}'.format(filename, e.message))
 
     elif filename.endswith('.fit'):
         try:
@@ -122,6 +125,8 @@ def on_file(filename):
         except Exception as e:
             if type(e) is NaNValue:
                 pass
+            elif type(e) is InvalidFile:
+                LOG.error('.fit: File {0} {1}'.format(filename, e.message))
             else:
                 LOG.exception('.fit: File {0} {1}'.format(filename, e.message))
 
