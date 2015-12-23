@@ -204,7 +204,6 @@ def parse_process_file(filename):
                 values = stripped[6:-14].split()
                 # 6 = echo "
                 # -14 = " > mygals.dat
-                print len(input_Jy_keys), len(values)
                 galaxies.append(import_to_dict(input_Jy_keys, values))
 
             if line.startswith('echo "# Header" > mygals.dat'):

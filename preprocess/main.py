@@ -99,7 +99,7 @@ def on_file(filename):
             print_progress()
 
         except Exception as e:
-            LOG.error('.sh: File {0} {1}'.format(filename, e.message))
+            LOG.exception('.sh: File {0} {1}'.format(filename, e.message))
 
     elif filename.endswith('.fit'):
         try:
@@ -123,7 +123,7 @@ def on_file(filename):
             if type(e) is NaNValue:
                 pass
             else:
-                LOG.error('.fit: File {0} {1}'.format(filename, e.message))
+                LOG.exception('.fit: File {0} {1}'.format(filename, e.message))
 
     return False
 
