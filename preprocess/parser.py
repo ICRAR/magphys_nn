@@ -166,7 +166,7 @@ def check_directory(directory):
     files = os.listdir(directory)
 
     for single_file in files:
-        if single_file.endswith('.fit'):
+        if single_file.endswith('.fit') or single_file.endswith('.f'):
             return True
 
     return False

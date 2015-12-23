@@ -104,7 +104,7 @@ def on_file(filename):
             else:
                 LOG.exception('.sh: File {0} {1}'.format(filename, e.message))
 
-    elif filename.endswith('.fit'):
+    elif filename.endswith('.fit') or filename.endswith('.f'):
         try:
             inputs, inputs_snr, median_outputs, output_bfm, output_bf, output_bfi = parse_fit_file(filename)
 
