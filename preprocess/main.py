@@ -29,8 +29,9 @@ import datetime
 
 from common.logger import config_logger
 from parser import parse_fit_file, parse_process_file
-from common.database import add_to_db, add_process_data_to_db
+from common.database import add_to_db, add_process_data_to_db, db_init
 from parser import NaNValue
+import common.config as config
 
 
 LOG = config_logger(__name__)
@@ -39,11 +40,14 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-dir', dest='working_directory', nargs=1, help='Path to the base directory containing the .fit files. (/mnt/gamad/kevin/)')
 parser.add_argument('-n', dest='num_to_load', type=int, nargs=1, help='Number of galaxies to load')
 parser.add_argument('-r', dest='run_id', nargs='*', help='Run ID folders to load. If ommitted, simply searches for all .fit files in subdirectories of the working directory.')
-
+parser.add_argument('-d', dest='database', nargs=1, help='SQLite database to use')
 args = vars(parser.parse_args())
 working_directory = args['working_directory'][0]
 num_to_load = args['num_to_load'][0]
 run_ids = args['run_id']
+
+# Fire up the DB based on our command line args
+db_init(config.DB_LOGIN + args['database'])
 
 run_dirs = []
 num_added = 0

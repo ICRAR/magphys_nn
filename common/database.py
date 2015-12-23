@@ -21,11 +21,9 @@ from logger import config_logger
 import numpy as np
 import os
 
-
 LOG = config_logger(__name__)
 
-engine = create_engine(config.DB_LOGIN)
-connection = engine.connect()
+connection = None
 
 MAGPHYS_NN_METADATA = MetaData()
 
@@ -251,6 +249,17 @@ BEST_FIT_MODEL = Table('best_fit_model_output',
                        Column('chi2', Float),
                        Column('redshift', Float)
                        )
+
+
+def db_init(db_string):
+    """
+    Initialises the database to the given string.
+    Should be an SQLite database, but others will work too.
+    """
+    engine = create_engine(db_string)
+
+    global connection
+    connection = engine.connect()
 
 
 def add_process_data_to_db(galaxy, run_id):
