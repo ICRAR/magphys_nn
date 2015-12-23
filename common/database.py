@@ -96,11 +96,9 @@ NN_TRAIN = Table('nn_train',
                  Column('galaxy_number', Integer),
                  Column('input', Integer, ForeignKey('input.input_id')),
                  Column('input_snr', Integer, ForeignKey('input.input_id')),
-                 
-                 # Be cheeky and use the pre-existing Input table. This is seriously bad design ;)
-                 # Things are in the same format though, so whatever.
-                 Column('input_process_data', Integer, ForeignKey('input.input_id')),
-                 Column('input_process_data_snr', Integer, ForeignKey('input.input_id')),
+
+                 Column('input_process_data', Integer, ForeignKey('input_Jy.input_Jy_id')),
+                 Column('input_process_data_snr', Integer, ForeignKey('input_Jy.input_Jy_id')),
                  
                  Column('output_median', Integer, ForeignKey('median_output.median_output_id')),
                  Column('output_best_fit', Integer, ForeignKey('best_fit_output.best_fit_output_id')),
@@ -132,6 +130,33 @@ INPUT = Table('input',
               Column('SPIRE250', Float),
               Column('SPIRE350', Float),
               Column('SPIRE500', Float)
+              )
+
+INPUT_JY = Table('input_Jy',
+              MAGPHYS_NN_METADATA,
+              Column('input_Jy_id', Integer, primary_key=True, autoincrement=True),
+              Column('type', String(30)),
+              Column('fuv', Float),
+              Column('nuv', Float),
+              Column('u', Float),
+              Column('g', Float),
+              Column('r', Float),
+              Column('z', Float),
+              Column('Z_', Float),
+              Column('Y', Float),
+              Column('J', Float),
+              Column('H', Float),
+              Column('K', Float),
+              Column('WISEW1', Float),
+              Column('WISEW2', Float),
+              Column('WISEW3', Float),
+              Column('WISEW4', Float),
+              Column('PACS100', Float),
+              Column('PACS160', Float),
+              Column('SPIRE250', Float),
+              Column('SPIRE350', Float),
+              Column('SPIRE500', Float),
+              Column('Unknown', Float)
               )
 
 MEDIAN_OUTPUT = Table('median_output',
@@ -230,7 +255,7 @@ BEST_FIT_MODEL = Table('best_fit_model_output',
 
 def add_process_data_to_db(galaxy, run_id):
 
-    input_key = connection.execute(INPUT.insert().values(type='process',
+    input_key = connection.execute(INPUT_JY.insert().values(type='reading',
                                     fuv=galaxy['fuv'],
                                     nuv=galaxy['nuv'],
                                     u=galaxy['u'],
@@ -250,10 +275,11 @@ def add_process_data_to_db(galaxy, run_id):
                                     PACS160=galaxy['PACS160'],
                                     SPIRE250=galaxy['SPIRE250'],
                                     SPIRE350=galaxy['SPIRE350'],
-                                    SPIRE500=galaxy['SPIRE500']
+                                    SPIRE500=galaxy['SPIRE500'],
+                                    Unknown=galaxy['Unknown']
                                     )).inserted_primary_key[0]
 
-    input_snr_key = connection.execute(INPUT.insert().values(type='process_snr',
+    input_snr_key = connection.execute(INPUT_JY.insert().values(type='reading_snr {0}'.format(input_key),
                                     fuv=galaxy['fuv_snr'],
                                     nuv=galaxy['nuv_snr'],
                                     u=galaxy['u_snr'],
@@ -273,15 +299,16 @@ def add_process_data_to_db(galaxy, run_id):
                                     PACS160=galaxy['PACS160_snr'],
                                     SPIRE250=galaxy['SPIRE250_snr'],
                                     SPIRE350=galaxy['SPIRE350_snr'],
-                                    SPIRE500=galaxy['SPIRE500_snr']
+                                    SPIRE500=galaxy['SPIRE500_snr'],
+                                    Unknown=galaxy['Unknown']
                                     )).inserted_primary_key[0]
     
     connection.execute(NN_TRAIN.insert().values(run_id=run_id,
                                              last_updated=func.now(),
                                              redshift=galaxy['redshift'],
                                              galaxy_number=galaxy['galaxy_number'],
-                                             input_process_data=input_key,
-                                             input_process_data_snr=input_snr_key
+                                             input_Jy=input_key,
+                                             input_Jy_snr=input_snr_key
                                              ))
 
 

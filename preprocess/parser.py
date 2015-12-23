@@ -29,47 +29,47 @@ process_data_input_key = [
     'galaxy_number',
     'redshift',
     'fuv',
-    'nuv',
-    'u',
-    'g',
-    'r',
-    'z',
-    'Z',
-    'Y',
-    'J',
-    'H',
-    'K',
-    'WISEW1',
-    'WISEW2',
-    'WISEW3',
-    'WISEW4',
-    'PACS100',
-    'PACS160',
-    'SPIRE250',
-    'SPIRE350',
-    'SPIRE500',
     'fuv_snr',
+    'nuv',
     'nuv_snr',
+    'u',
     'u_snr',
-    'g_snr',
+    'g',
+    'g_snr'
+    'r',
     'r_snr',
+    'z',
     'z_snr',
+    'Z',
     'Z_snr',
+    'Y',
     'Y_snr',
+    'J',
     'J_snr',
+    'H',
     'H_snr',
+    'K',
     'K_snr',
+    'WISEW1',
     'WISEW1_snr',
+    'WISEW2',
     'WISEW2_snr',
+    'WISEW3',
     'WISEW3_snr',
+    'WISEW4',
     'WISEW4_snr',
+    'PACS100',
     'PACS100_snr',
+    'PACS160',
     'PACS160_snr',
+    'SPIRE250',
     'SPIRE250_snr',
+    'SPIRE350',
     'SPIRE350_snr',
+    'SPIRE500',
     'SPIRE500_snr',
-    'Unknown1',
-    'Unknown2'
+    'Unknown',
+    'Unknown_snr'
 ]
 
 class NaNValue(Exception):
@@ -250,11 +250,6 @@ def parse_fit_file(filename):
             # -----------------------------Block for capturing inputs and best fits-----------------------------
             if not percentiles:
 
-                if line.startswith('# OBSERVED FLUXES (and errors):'):  # 1 Finding first line
-                    input_keys_next = True
-                    valid_file = True
-                    continue
-
                 if input_keys_next:  # 2 Column headings for input
                     line_inputs = line.strip('# \n').split()
                     input_keys = list(line_inputs)
@@ -282,10 +277,6 @@ def parse_fit_file(filename):
 
                     input_values_snr_next = False
                     # We now have input keys and input values ready for storing in a dict
-                    continue
-
-                if line.startswith('# BEST FIT MODEL: (i_sfh, i_ir, chi2, redshift)'):  # 5 Header for the part containing best fit values
-                    output_best_fit_model_next = True
                     continue
 
                 if output_best_fit_model_next:  # 6 Pull the values under # BEST FIT MODEL: (i_sfh, i_ir, chi2, redshift)
@@ -325,6 +316,16 @@ def parse_fit_file(filename):
 
                     output_best_fit_inputs_next = False
                     percentiles = True  # We're now looking for percentiles
+                    continue
+
+                # Save doing string comparisons for last.
+                if line.startswith('# OBSERVED FLUXES (and errors):'):  # 1 Finding first line
+                    input_keys_next = True
+                    valid_file = True
+                    continue
+
+                if line.startswith('# BEST FIT MODEL: (i_sfh, i_ir, chi2, redshift)'):  # 5 Header for the part containing best fit values
+                    output_best_fit_model_next = True
                     continue
             # -----------------------------Percentiles-----------------------------
             else:
