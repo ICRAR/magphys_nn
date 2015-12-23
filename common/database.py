@@ -95,8 +95,8 @@ NN_TRAIN = Table('nn_train',
                  Column('input', Integer, ForeignKey('input.input_id')),
                  Column('input_snr', Integer, ForeignKey('input.input_id')),
 
-                 Column('input_process_data', Integer, ForeignKey('input_Jy.input_Jy_id')),
-                 Column('input_process_data_snr', Integer, ForeignKey('input_Jy.input_Jy_id')),
+                 Column('input_Jy', Integer, ForeignKey('input_Jy.input_Jy_id')),
+                 Column('input_Jy_snr', Integer, ForeignKey('input_Jy.input_Jy_id')),
                  
                  Column('output_median', Integer, ForeignKey('median_output.median_output_id')),
                  Column('output_best_fit', Integer, ForeignKey('best_fit_output.best_fit_output_id')),
