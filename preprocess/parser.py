@@ -364,10 +364,7 @@ def parse_fit_file(filename):
         raise InvalidFile('No data')
 
 if __name__ == '__main__':
-    print input_Jy_keys
-    print len(input_Jy_keys)
-
-
+    pass
 
 
 

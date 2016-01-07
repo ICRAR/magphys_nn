@@ -113,6 +113,7 @@ INPUT = Table('input',
               Column('u', Float),
               Column('g', Float),
               Column('r', Float),
+              Column('i', Float),
               Column('z', Float),
               Column('Z_', Float),
               Column('Y', Float),
@@ -139,6 +140,7 @@ INPUT_JY = Table('input_Jy',
               Column('u', Float),
               Column('g', Float),
               Column('r', Float),
+              Column('i', Float),
               Column('z', Float),
               Column('Z_', Float),
               Column('Y', Float),
@@ -154,7 +156,6 @@ INPUT_JY = Table('input_Jy',
               Column('SPIRE250', Float),
               Column('SPIRE350', Float),
               Column('SPIRE500', Float),
-              Column('Unknown', Float)
               )
 
 MEDIAN_OUTPUT = Table('median_output',
@@ -270,6 +271,7 @@ def add_process_data_to_db(galaxy, run_id):
                                     u=galaxy['u'],
                                     g=galaxy['g'],
                                     r=galaxy['r'],
+                                    i=galaxy['i'],
                                     z=galaxy['z'],
                                     Z_=galaxy['Z'],
                                     Y=galaxy['Y'],
@@ -285,7 +287,6 @@ def add_process_data_to_db(galaxy, run_id):
                                     SPIRE250=galaxy['SPIRE250'],
                                     SPIRE350=galaxy['SPIRE350'],
                                     SPIRE500=galaxy['SPIRE500'],
-                                    Unknown=galaxy['Unknown']
                                     )).inserted_primary_key[0]
 
     input_snr_key = connection.execute(INPUT_JY.insert().values(type='reading_snr {0}'.format(input_key),
@@ -294,6 +295,7 @@ def add_process_data_to_db(galaxy, run_id):
                                     u=galaxy['u_snr'],
                                     g=galaxy['g_snr'],
                                     r=galaxy['r_snr'],
+                                    i=galaxy['i_snr'],
                                     z=galaxy['z_snr'],
                                     Z_=galaxy['Z_snr'],
                                     Y=galaxy['Y_snr'],
@@ -309,7 +311,6 @@ def add_process_data_to_db(galaxy, run_id):
                                     SPIRE250=galaxy['SPIRE250_snr'],
                                     SPIRE350=galaxy['SPIRE350_snr'],
                                     SPIRE500=galaxy['SPIRE500_snr'],
-                                    Unknown=galaxy['Unknown']
                                     )).inserted_primary_key[0]
     
     connection.execute(NN_TRAIN.insert().values(run_id=run_id,
@@ -331,6 +332,7 @@ def add_to_db(input, input_snr, output, best_fit_output, best_fit_model, best_fi
                     u=input['u'],
                     g=input['g'],
                     r=input['r'],
+                    i=input['i'],
                     z=input['z'],
                     Z_=input['Z'],
                     Y=input['Y'],
@@ -354,6 +356,7 @@ def add_to_db(input, input_snr, output, best_fit_output, best_fit_model, best_fi
                         u=input_snr['u'],
                         g=input_snr['g'],
                         r=input_snr['r'],
+                        i=input_snr['i'],
                         z=input_snr['z'],
                         Z_=input_snr['Z'],
                         Y=input_snr['Y'],
@@ -428,6 +431,7 @@ def add_to_db(input, input_snr, output, best_fit_output, best_fit_model, best_fi
                                         u=best_fit_output_input['u'],
                                         g=best_fit_output_input['g'],
                                         r=best_fit_output_input['r'],
+                                        i=best_fit_output_input['i'],
                                         z=best_fit_output_input['z'],
                                         Z_=best_fit_output_input['Z'],
                                         Y=best_fit_output_input['Y'],
@@ -483,8 +487,58 @@ def row2dict(row):
     return d
 
 
+def map_inputrow2list_Jy(row, row_snr):
+    out_list = [None] * 42
+
+    out_list[0] = row['fuv']
+    out_list[2] = row['nuv']
+    out_list[4] = row['u']
+    out_list[6] = row['g']
+    out_list[8] = row['r']
+    out_list[10] = row['i']
+    out_list[12] = row['z']
+    out_list[14] = row['Z_']
+    out_list[16] = row['Y']
+    out_list[18] = row['J']
+    out_list[20] = row['H']
+    out_list[22] = row['K']
+    out_list[24] = row['WISEW1']
+    out_list[26] = row['WISEW2']
+    out_list[28] = row['WISEW3']
+    out_list[30] = row['WISEW4']
+    out_list[32] = row['PACS100']
+    out_list[34] = row['PACS160']
+    out_list[36] = row['SPIRE250']
+    out_list[38] = row['SPIRE350']
+    out_list[40] = row['SPIRE500']
+
+    # SNR values, suitable for NN input
+    out_list[1] = row_snr['fuv']
+    out_list[3] = row_snr['nuv']
+    out_list[5] = row_snr['u']
+    out_list[7] = row_snr['g']
+    out_list[9] = row_snr['r']
+    out_list[11] = row_snr['i']
+    out_list[13] = row_snr['z']
+    out_list[15] = row_snr['Z_']
+    out_list[17] = row_snr['Y']
+    out_list[19] = row_snr['J']
+    out_list[21] = row_snr['H']
+    out_list[23] = row_snr['K']
+    out_list[25] = row_snr['WISEW1']
+    out_list[27] = row_snr['WISEW2']
+    out_list[29] = row_snr['WISEW3']
+    out_list[31] = row_snr['WISEW4']
+    out_list[33] = row_snr['PACS100']
+    out_list[35] = row_snr['PACS160']
+    out_list[37] = row_snr['SPIRE250']
+    out_list[39] = row_snr['SPIRE350']
+    out_list[41] = row_snr['SPIRE500']
+
+    return out_list
+
 def map_inputrow2list(row, row_snr):
-    out_list = [None] * 40
+    out_list = [None] * 42
     #out_list = [None] * 20
     #"""
     # Normal values, suitable for NN input
@@ -536,22 +590,22 @@ def map_inputrow2list(row, row_snr):
     out_list[4] = row['u']
     out_list[6] = row['g']
     out_list[8] = row['r']
-    out_list[10] = row['z']
-    out_list[12] = row['Z_']
-    out_list[14] = row['Y']
-    out_list[16] = row['J']
-    out_list[18] = row['H']
-    out_list[20] = row['K']
-    out_list[22] = row['WISEW1']
-    out_list[24] = row['WISEW2']
-    out_list[26] = row['WISEW3']
-    out_list[28] = row['WISEW4']
-    out_list[30] = row['PACS100']
-    out_list[32] = row['PACS160']
-    out_list[34] = row['SPIRE250']
-    out_list[36] = row['SPIRE350']
-    out_list[38] = row['SPIRE500']
-
+    out_list[10] = row['i']
+    out_list[12] = row['z']
+    out_list[14] = row['Z_']
+    out_list[16] = row['Y']
+    out_list[18] = row['J']
+    out_list[20] = row['H']
+    out_list[22] = row['K']
+    out_list[24] = row['WISEW1']
+    out_list[26] = row['WISEW2']
+    out_list[28] = row['WISEW3']
+    out_list[30] = row['WISEW4']
+    out_list[32] = row['PACS100']
+    out_list[34] = row['PACS160']
+    out_list[36] = row['SPIRE250']
+    out_list[38] = row['SPIRE350']
+    out_list[40] = row['SPIRE500']
 
     # SNR values, suitable for NN input
     out_list[1] = row_snr['fuv']
@@ -559,21 +613,22 @@ def map_inputrow2list(row, row_snr):
     out_list[5] = row_snr['u']
     out_list[7] = row_snr['g']
     out_list[9] = row_snr['r']
-    out_list[11] = row_snr['z']
-    out_list[13] = row_snr['Z_']
-    out_list[15] = row_snr['Y']
-    out_list[17] = row_snr['J']
-    out_list[19] = row_snr['H']
-    out_list[21] = row_snr['K']
-    out_list[23] = row_snr['WISEW1']
-    out_list[25] = row_snr['WISEW2']
-    out_list[27] = row_snr['WISEW3']
-    out_list[29] = row_snr['WISEW4']
-    out_list[31] = row_snr['PACS100']
-    out_list[33] = row_snr['PACS160']
-    out_list[35] = row_snr['SPIRE250']
-    out_list[37] = row_snr['SPIRE350']
-    out_list[39] = row_snr['SPIRE500']
+    out_list[11] = row_snr['i']
+    out_list[13] = row_snr['z']
+    out_list[15] = row_snr['Z_']
+    out_list[17] = row_snr['Y']
+    out_list[19] = row_snr['J']
+    out_list[21] = row_snr['H']
+    out_list[23] = row_snr['K']
+    out_list[25] = row_snr['WISEW1']
+    out_list[27] = row_snr['WISEW2']
+    out_list[29] = row_snr['WISEW3']
+    out_list[31] = row_snr['WISEW4']
+    out_list[33] = row_snr['PACS100']
+    out_list[35] = row_snr['PACS160']
+    out_list[37] = row_snr['SPIRE250']
+    out_list[39] = row_snr['SPIRE350']
+    out_list[41] = row_snr['SPIRE500']
 
     return out_list
 
@@ -642,28 +697,29 @@ def map_best_fit_output2list(row):
 
 
 def map_best_fit_output_inputs2list(row):
-    out_list = [None] * 20
+    out_list = [None] * 21
 
     out_list[0] = row['fuv']
     out_list[1] = row['nuv']
     out_list[2] = row['u']
     out_list[3] = row['g']
     out_list[4] = row['r']
-    out_list[5] = row['z']
-    out_list[6] = row['Z_']
-    out_list[7] = row['Y']
-    out_list[8] = row['J']
-    out_list[9] = row['H']
-    out_list[10] = row['K']
-    out_list[11] = row['WISEW1']
-    out_list[12] = row['WISEW2']
-    out_list[13] = row['WISEW3']
-    out_list[14] = row['WISEW4']
-    out_list[15] = row['PACS100']
-    out_list[16] = row['PACS160']
-    out_list[17] = row['SPIRE250']
-    out_list[18] = row['SPIRE350']
-    out_list[19] = row['SPIRE500']
+    out_list[5] = row['i']
+    out_list[6] = row['z']
+    out_list[7] = row['Z_']
+    out_list[8] = row['Y']
+    out_list[9] = row['J']
+    out_list[10] = row['H']
+    out_list[11] = row['K']
+    out_list[12] = row['WISEW1']
+    out_list[13] = row['WISEW2']
+    out_list[14] = row['WISEW3']
+    out_list[15] = row['WISEW4']
+    out_list[16] = row['PACS100']
+    out_list[17] = row['PACS160']
+    out_list[18] = row['SPIRE250']
+    out_list[19] = row['SPIRE350']
+    out_list[20] = row['SPIRE500']
 
     return out_list
 
@@ -692,7 +748,7 @@ def check_valid_row(row):
     return True
 
 
-def get_train_test_data(num_test, num_train, run_folder, single_value=None, output_type='median', repeat_redshift=1):
+def get_train_test_data(num_test, num_train, run_folder, single_value=None, input_type='normal', output_type='median', repeat_redshift=1):
 
     total_to_get = num_train+num_test
     count = connection.execute(select([func.count(NN_TRAIN)]).where(NN_TRAIN.c.run_id.endswith(run_folder)).order_by(ffunc.random()).limit(total_to_get + total_to_get*0.05)).first()[0]
@@ -715,11 +771,6 @@ def get_train_test_data(num_test, num_train, run_folder, single_value=None, outp
 
     print 'Getting input and output data for {0}'.format(output_type)
     for row in result:
-        # Make new dict for this row
-
-        # Pull out ID for input, input SNR and output
-        input_id = row['input']
-        input_snr_id = row['input_snr']
 
         if output_type == 'median':
             output_id = row['output_median']
@@ -751,16 +802,30 @@ def get_train_test_data(num_test, num_train, run_folder, single_value=None, outp
         else:
             raise Exception('Invalid output type')
 
-        input_row = connection.execute(select([INPUT]).where(INPUT.c.input_id == input_id)).first()
+        if input_type == 'normal':
+            input_id = row['input']
+            input_snr_id = row['input_snr']
+            input_row = connection.execute(select([INPUT]).where(INPUT.c.input_id == input_id)).first()
 
-        input_snr_row = connection.execute(select([INPUT]).where(INPUT.c.input_id == input_snr_id)).first()
+            input_snr_row = connection.execute(select([INPUT]).where(INPUT.c.input_id == input_snr_id)).first()
 
-        if not input_row or not input_snr_row:
-            continue
+            if not input_row or not input_snr_row:
+                continue
 
-        # Interleave the rows. Done manually (ugh).
-        # Need this to ensure everything is in the right order for the NN to process
-        row_inputs = map_inputrow2list(input_row, input_snr_row)
+            row_inputs = map_inputrow2list(input_row, input_snr_row)
+
+        elif input_type == 'Jy':
+            # For these, the SNR and normal readings are already interleaved
+            input_id = row['input_Jy']
+            input_snr_id = row['input_Jy_snr']
+
+            input_row = connection.execute(select([INPUT_JY]).where(INPUT_JY.c.input_Jy_id == input_id)).first()
+            input_snr_row = connection.execute(select([INPUT_JY]).where(INPUT_JY.c.input_Jy_id == input_snr_id)).first()
+
+            if not input_row or not input_snr_row:
+                continue
+
+            row_inputs = map_inputrow2list_Jy(input_row, input_snr_row)
 
         if not check_valid_row(input_row):
             # This row contains some invalid data (such as -999s or 0s)

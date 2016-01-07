@@ -13,18 +13,14 @@ base_path = os.path.dirname(__file__)
 sys.path.append(os.path.abspath(os.path.join(base_path, '..')))
 
 import random as rand
-
-from keras.models import Sequential, Graph
-from keras.layers.core import Dense, Dropout, MaxoutDense, Activation
-from keras.callbacks import History
-from keras.optimizers import *
 import numpy as np
 from common.database import get_train_test_data, db_init
 import pickle
-from keras.utils.visualize_util import to_graph
+from pybrain.structure import *
+from pybrain.supervised import *
+from pybrain.datasets import *
 
-
-tmp_file = '/tmp/nn_last_tmp_input1.tmp'
+tmp_file = '/tmp/nn_last_tmp_input_pybrain.tmp'
 
 
 def standardise_2Darray(array):
@@ -142,15 +138,15 @@ def write_file(filename, config, test_in, test_out, train_in, train_out, galaxy_
 # best_fit_model = 4
 # best_fit_inputs = 20. That weird line in the fit file that contains different values for the standard inputs.
 db_init('sqlite:///Database_run06.db')
-train_data = 38000
-test_data = 500
+train_data = 10000
+test_data = 100
 run_id = '06'
 output_type = 'median'
 input_type = 'normal'
 repeat_redshift = 1
 
 
-def run_network(hidden_connections, hidden_layers, loss, single_value=None):
+def run_network(single_value=None):
 
     nn_config_dict = {'test':test_data, 'train':train_data, 'run':run_id, 'input_type': input_type, 'output_type':output_type, 'repeat_redshift':repeat_redshift, 'value':single_value}
 
@@ -197,117 +193,66 @@ def run_network(hidden_connections, hidden_layers, loss, single_value=None):
     print np.shape(test_out)
     #print np.shape(redshift_train)
 
+    data_set = SupervisedDataSet(40+repeat_redshift, 32)
+
+    for i in range(0, len(train_in)):
+        data_set.addSample(train_in[i], train_out[i])
+
     print 'Compiling neural network model'
 
-    """
-    graph = Graph()
+    network = FeedForwardNetwork()
 
-    graph.add_input(name='input', input_shape=(41,))
-    graph.add_input(name='redshift', input_shape=(1,))
-    graph.add_node(Dense(60, input_dim=41, activation='tanh'), name='input_layer', input='input')
-    graph.add_node(Dense(60, activation='tanh'), name='hidden2', inputs=['input_layer', 'redshift'], merge_mode='concat')
-    graph.add_node(Dense(60, activation='tanh'), name='hidden3', input='hidden2')
-    graph.add_node(Dense(32, activation='tanh'), name='hidden4', input='hidden3')
-    graph.add_output(name='output', input='hidden4')
+    input_layer = LinearLayer(40+repeat_redshift,'Input')
+    hidden1 = TanhLayer(50,'hidden1')
+    hidden2 = TanhLayer(50,'hidden2')
+    hidden3 = TanhLayer(50,'hidden3')
+    output_layer = LinearLayer(32, 'output')
 
-    to_graph(graph).write_svg('graph1.svg')
-    optimiser = SGD(lr=0.01, momentum=0.0, decay=0, nesterov=True)
-    graph.compile(loss={'output':'rmse'}, optimizer=optimiser)
-    """
+    network.addInputModule(input_layer)
+    network.addModule(hidden1)
+    network.addModule(hidden2)
+    network.addModule(hidden3)
+    network.addOutputModule(output_layer)
 
-    model = Sequential()
+    network.addConnection(FullConnection(input_layer, hidden1))
+    network.addConnection(FullConnection(hidden1, hidden2))
+    network.addConnection(FullConnection(hidden2, hidden3))
+    network.addConnection(FullConnection(hidden3, output_layer))
 
-    optimiser = SGD(lr=0.01, momentum=0.0, decay=0, nesterov=True)
-    #optimiser = Adagrad(lr=0.01, epsilon=1e-06)
-    #optimiser = Adadelta(lr=1.0, rho=0.95, epsilon=1e-06)
-    #optimiser = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
+    network.sortModules()
 
-    """
-    model.add(Dense(output_dim=60, input_dim=40+repeat_redshift, init='he_normal', activation='tanh'))
-    model.add(Dense(output_dim=60, input_dim=60, init='he_normal', activation='tanh'))
-    model.add(Dense(output_dim=60, input_dim=60, init='he_normal', activation='tanh'))
-    model.add(Dense(output_dim=60, input_dim=60, init='he_normal', activation='relu'))
-    model.add(Dense(output_dim=32, input_dim=60, init='he_normal', activation='linear'))
-
-    """
-
-    model.add(Dense(output_dim=hidden_connections, input_dim=40+repeat_redshift, init='glorot_uniform', activation='linear'))
-    for i in range(0, hidden_layers):
-        model.add(Dense(output_dim=hidden_connections, input_dim=hidden_connections, init='glorot_uniform', activation='tanh'))
-    model.add(Dense(output_dim=32, input_dim=hidden_connections, init='glorot_uniform', activation='linear'))
-    model.compile(loss=loss, optimizer=optimiser)
-    #"""
+    trainer = BackpropTrainer(network, data_set)
 
     print "Compiled."
 
-    # Train the model each generation and show predictions against the validation dataset
-    history = History()
+    epochs = 0
+    do_test = 100
     trained = False
-    total_epoch = 0
-
-    history_tracking = []
-    history_history = []
-    history_seen = []
     while not trained:
+        error = trainer.train()
+        epochs += 1
+        do_test -= 1
 
-        #history = graph.fit({'input':train_in, 'redshift':redshift_train, 'output':train_out}, batch_size=500, nb_epoch=50, validation_split=0.1, verbose=True, callbacks=[history])
-        history = model.fit(train_in, train_out, batch_size=500, nb_epoch=1, validation_split=0.1, show_accuracy=True, verbose=False, callbacks=[history])
-        current_loss = history.totals['loss']
+        print 'Error rate at epoch {0}: {1}'.format(epochs, error)
 
-        total_epoch += 1
-        print history.totals
-        history_seen.append(history.seen)
-        history_history.append(history.history)
-        history_tracking.append(history.totals)
-        if history.totals['loss'] < 0.001 or total_epoch > 500:
+        if error < 0.001 or epochs == 1000:
             trained = True
 
-    with open('hidden_{0}_connections_{1}_loss_{2}_epoch_{3}_value:{4}.txt'.format(hidden_layers, hidden_connections, loss, total_epoch, single_value), 'w') as f:
-
-        for k, v in nn_config_dict.iteritems():
-            f.write('{0}        {1}\n'.format(k, v))
-
-        i = 0
-        f.write('\n\nHistory\n')
-        for item in history_history:
-            f.write('{0}:   {1}\n'.format(i, item))
-            i += 1
-
-        f.write('\n\nSeen\n')
-        i = 0
-        for item in history_seen:
-            f.write('{0}:   {1}\n'.format(i, item))
-            i += 1
-
-        f.write('\n\nTotals\n')
-        i = 0
-        for item in history_tracking:
-            f.write('{0}:   {1}\n'.format(i, item))
-            i += 1
-
-        for i in range(0, 30):
-            test_to_use = rand.randint(0, test_data - 1)
-            ans = model.predict(np.array([test_in[test_to_use]]))
-            #ans = graph.predict({'input':np.array([test_in[test_to_use]]), 'redshift':np.array([redshift_test[test_to_use]])})
-            #f.write('Test {0} for epoch {1}\n'.format(i, total_epoch))
-            f.write('\nGalaxy number = {0}\n'.format(galaxy_ids[test_to_use]))
-            f.write('Output   Correct\n')
-            for a in range(0, len(test_out[test_to_use])):
-                f.write('{0}  =   {1}\n'.format(denormalise_value(ans[0][a], train_out_min[a], train_out_max[a]), denormalise_value(test_out[test_to_use][a], test_out_min[a], test_out_max[a])))
-            f.write('\n\n')
+        if do_test == 0:
+            for i in range(0, 10):
+                test_to_use = rand.randint(0, test_data - 1)
+                ans = network.activate(np.array(test_in[test_to_use]))
+                #ans = graph.predict({'input':np.array([test_in[test_to_use]]), 'redshift':np.array([redshift_test[test_to_use]])})
+                #f.write('Test {0} for epoch {1}\n'.format(i, total_epoch))
+                print '\nGalaxy number = {0}\n'.format(galaxy_ids[test_to_use])
+                print 'Output   Correct\n'
+                for a in range(0, len(test_out[test_to_use])):
+                    print'{0}  =   {1}\n'.format(denormalise_value(ans[a], train_out_min[a], train_out_max[a]), denormalise_value(test_out[test_to_use][a], test_out_min[a], test_out_max[a]))
+                print '\n\n'
+            do_test = 100
 
 if __name__ == '__main__':
-    """hidden_connections = [25, 50, 75, 100]
-    hidden_layers = [1, 2, 3, 4]
-    values = range(0, 32)
-    loss = 'rmse'
-
-    #for value in values:
-    for connections in hidden_connections:
-        for layer in hidden_layers:
-            run_network(connections, layer, loss)"""
-
-    run_network(50, 3, 'mse')
+    run_network()
 
 print "Done"
 
