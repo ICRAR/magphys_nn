@@ -201,7 +201,7 @@ def parse_process_file(filename):
                     continue
 
                 # Remove this crap
-                values = stripped[6:-14].split()
+                values = stripped[6:-15].split()
                 # 6 = echo "
                 # -14 = " > mygals.dat
                 print values
