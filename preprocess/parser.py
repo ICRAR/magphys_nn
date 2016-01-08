@@ -39,6 +39,8 @@ input_Jy_keys = [
     'g_snr',
     'r',
     'r_snr',
+    'i',
+    'i_snr',
     'z',
     'z_snr',
     'Z',
@@ -68,9 +70,7 @@ input_Jy_keys = [
     'SPIRE350',
     'SPIRE350_snr',
     'SPIRE500',
-    'SPIRE500_snr',
-    'Unknown',
-    'Unknown_snr',
+    'SPIRE500_snr'
 ]
 
 
