@@ -91,7 +91,7 @@ def on_file(filename):
             galaxies = parse_process_file(filename)
 
             for galaxy in galaxies:
-                add_process_data_to_db(galaxy, current_run_dir)
+                add_process_data_to_db(galaxy, current_run_dir, filename)
 
             global sh_files
             sh_files += 1

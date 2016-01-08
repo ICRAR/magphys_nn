@@ -12,11 +12,10 @@ base_path = os.path.dirname(__file__)
 sys.path.append(os.path.abspath(os.path.join(base_path, '..')))
 
 from sqlalchemy.engine import create_engine
-from sqlalchemy import MetaData, Table, Column, Integer, String, Float, TIMESTAMP, ForeignKey, BigInteger, DateTime
 from sqlalchemy import func
 from sqlalchemy.sql.expression import select, func as ffunc
 
-from common import config
+from database_definition import *
 from logger import config_logger
 import numpy as np
 import os
@@ -24,232 +23,6 @@ import os
 LOG = config_logger(__name__)
 
 connection = None
-
-MAGPHYS_NN_METADATA = MetaData()
-
-
-# FIT file names -> database names
-median_output_parameter_name_map = {
-    'ager': 'ager',
-    'tau_V': 'tau_V',
-    'agem': 'agem',
-    'tlastb': 'tlastb',
-    'M(stars)': 'Mstars',
-    'sfr29': 'sfr29',
-    'xi_PAH^tot': 'xi_PAHtot',
-    'f_mu(SFH)': 'f_muSFH',
-    'fb17': 'fb17',
-    'fb16': 'fb16',
-    'T_C^ISM': 'T_CISM',
-    'Ldust': 'Ldust',
-    'mu_parameter': 'mu_parameter',
-    'xi_C^tot': 'xi_Ctot',
-    'xi_W^tot': 'xi_Wtot',
-    'f_mu(IR)': 'f_muIR',
-    'fb18': 'fb18',
-    'fb19': 'fb19',
-    'T_W^BC': 'T_WBC',
-    'SFR_0.1Gyr': 'SFR_0_1Gyr',
-    'fb29': 'fb29',
-    'sfr17': 'sfr17',
-    'sfr16': 'sfr16',
-    'sfr19': 'sfr19',
-    'sfr18': 'sfr18',
-    'tau_V^ISM': 'tau_VISM',
-    'sSFR_0.1Gyr': 'sSFR_0_1Gyr',
-    'metalicity Z/Zo': 'metalicity_Z_Z0',
-    'M(dust)': 'Mdust',
-    'xi_MIR^tot': 'xi_MIRtot',
-    'tform': 'tform',
-    'gamma': 'gamma'
-    }
-
-# FIT file names -> database names
-best_fit_output_parameter_name_map = {
-    'fmu(SFH)': 'fmuSFH',
-    'fmu(IR)': 'fmuIR',
-    'mu': 'mu',
-    'tauv': 'tauv',
-    'sSFR': 'sSFR',
-    'M*': 'M_asterisk',
-    'Ldust': 'Ldust',
-    'T_W^BC': 'T_WBC',
-    'T_C^ISM': 'T_CISM',
-    'xi_C^tot': 'xi_Ctot',
-    'xi_PAH^tot': 'xi_PAHtot',
-    'xi_MIR^tot': 'xi_MIRtot',
-    'xi_W^tot': 'xi_Wtot',
-    'tvism': 'tvism',
-    'Mdust': 'Mdust',
-    'SFR': 'SFR'
-}
-
-NN_TRAIN = Table('nn_train',
-                 MAGPHYS_NN_METADATA,
-                 Column('train_id', Integer, primary_key=True, autoincrement=True),
-                 Column('run_id', String(30)),
-                 Column('filename', String(200)),
-                 Column('last_updated', TIMESTAMP),
-                 Column('redshift', Float),
-                 Column('galaxy_number', Integer),
-                 Column('input', Integer, ForeignKey('input.input_id')),
-                 Column('input_snr', Integer, ForeignKey('input.input_id')),
-
-                 Column('input_Jy', Integer, ForeignKey('input_Jy.input_Jy_id')),
-                 Column('input_Jy_snr', Integer, ForeignKey('input_Jy.input_Jy_id')),
-                 
-                 Column('output_median', Integer, ForeignKey('median_output.median_output_id')),
-                 Column('output_best_fit', Integer, ForeignKey('best_fit_output.best_fit_output_id')),
-                 Column('output_best_fit_model', Integer, ForeignKey('best_fit_model_output.best_fit_model_id')),
-                 Column('output_best_fit_inputs', Integer, ForeignKey('best_fit_output_input.best_fit_output_input_id')),
-                 )
-
-INPUT = Table('input',
-              MAGPHYS_NN_METADATA,
-              Column('input_id', Integer, primary_key=True, autoincrement=True),
-              Column('type', String(20)),
-              Column('fuv', Float),
-              Column('nuv', Float),
-              Column('u', Float),
-              Column('g', Float),
-              Column('r', Float),
-              Column('i', Float),
-              Column('z', Float),
-              Column('Z_', Float),
-              Column('Y', Float),
-              Column('J', Float),
-              Column('H', Float),
-              Column('K', Float),
-              Column('WISEW1', Float),
-              Column('WISEW2', Float),
-              Column('WISEW3', Float),
-              Column('WISEW4', Float),
-              Column('PACS100', Float),
-              Column('PACS160', Float),
-              Column('SPIRE250', Float),
-              Column('SPIRE350', Float),
-              Column('SPIRE500', Float)
-              )
-
-INPUT_JY = Table('input_Jy',
-              MAGPHYS_NN_METADATA,
-              Column('input_Jy_id', Integer, primary_key=True, autoincrement=True),
-              Column('type', String(30)),
-              Column('fuv', Float),
-              Column('nuv', Float),
-              Column('u', Float),
-              Column('g', Float),
-              Column('r', Float),
-              Column('i', Float),
-              Column('z', Float),
-              Column('Z_', Float),
-              Column('Y', Float),
-              Column('J', Float),
-              Column('H', Float),
-              Column('K', Float),
-              Column('WISEW1', Float),
-              Column('WISEW2', Float),
-              Column('WISEW3', Float),
-              Column('WISEW4', Float),
-              Column('PACS100', Float),
-              Column('PACS160', Float),
-              Column('SPIRE250', Float),
-              Column('SPIRE350', Float),
-              Column('SPIRE500', Float),
-              )
-
-MEDIAN_OUTPUT = Table('median_output',
-                      MAGPHYS_NN_METADATA,
-                      Column('median_output_id', Integer, primary_key=True, autoincrement=True),
-                      Column('ager', Float),
-                      Column('tau_V', Float),
-                      Column('agem', Float),
-                      Column('tlastb', Float),
-                      Column('Mstars', Float),
-                      Column('sfr29', Float),
-                      Column('xi_PAHtot', Float),
-                      Column('f_muSFH', Float),
-                      Column('fb17', Float),
-                      Column('fb16', Float),
-                      Column('T_CISM', Float),
-                      Column('Ldust', Float),
-                      Column('mu_parameter', Float),
-                      Column('xi_Ctot', Float),
-                      Column('xi_Wtot', Float),
-                      Column('f_muIR', Float),
-                      Column('fb18', Float),
-                      Column('fb19', Float),
-                      Column('T_WBC', Float),
-                      Column('SFR_0_1Gyr', Float),
-                      Column('fb29', Float),
-                      Column('sfr17', Float),
-                      Column('sfr16', Float),
-                      Column('sfr19', Float),
-                      Column('sfr18', Float),
-                      Column('tau_VISM', Float),
-                      Column('sSFR_0_1Gyr', Float),
-                      Column('metalicity_Z_Z0', Float),
-                      Column('Mdust', Float),
-                      Column('xi_MIRtot', Float),
-                      Column('tform', Float),
-                      Column('gamma', Float)
-                      )
-
-BEST_FIT_OUTPUT = Table('best_fit_output',
-                        MAGPHYS_NN_METADATA,
-                        Column('best_fit_output_id', Integer, primary_key=True, autoincrement=True),
-                        Column('fmuSFH', Float),
-                        Column('fmuIR', Float),
-                        Column('mu', Float),
-                        Column('tauv', Float),
-                        Column('sSFR', Float),
-                        Column('m_asterisk', Float),
-                        Column('Ldust', Float),
-                        Column('T_WBC', Float),
-                        Column('T_CISM', Float),
-                        Column('xi_Ctot', Float),
-                        Column('xi_PAHtot', Float),
-                        Column('xi_MIRtot', Float),
-                        Column('xi_Wtot', Float),
-                        Column('tvism', Float),
-                        Column('Mdust', Float),
-                        Column('SFR', Float),
-                        )
-
-
-BEST_FIT_OUTPUT_INPUT = Table('best_fit_output_input',
-                              MAGPHYS_NN_METADATA,
-                              Column('best_fit_output_input_id', Integer, primary_key=True, autoincrement=True),
-                              Column('fuv', Float),
-                              Column('nuv', Float),
-                              Column('u', Float),
-                              Column('g', Float),
-                              Column('r', Float),
-                              Column('z', Float),
-                              Column('Z_', Float),
-                              Column('Y', Float),
-                              Column('J', Float),
-                              Column('H', Float),
-                              Column('K', Float),
-                              Column('WISEW1', Float),
-                              Column('WISEW2', Float),
-                              Column('WISEW3', Float),
-                              Column('WISEW4', Float),
-                              Column('PACS100', Float),
-                              Column('PACS160', Float),
-                              Column('SPIRE250', Float),
-                              Column('SPIRE350', Float),
-                              Column('SPIRE500', Float)
-                              )
-
-BEST_FIT_MODEL = Table('best_fit_model_output',
-                       MAGPHYS_NN_METADATA,
-                       Column('best_fit_model_id', Integer, primary_key=True, autoincrement=True),
-                       Column('i_sfh', Float),
-                       Column('i_ir', Float),
-                       Column('chi2', Float),
-                       Column('redshift', Float)
-                       )
 
 
 def db_init(db_string):
@@ -263,170 +36,175 @@ def db_init(db_string):
     connection = engine.connect()
 
 
-def add_process_data_to_db(galaxy, run_id):
+def add_process_data_to_db(galaxy, run_id, sh_filename):
 
-    input_key = connection.execute(INPUT_JY.insert().values(type='reading',
-                                    fuv=galaxy['fuv'],
-                                    nuv=galaxy['nuv'],
-                                    u=galaxy['u'],
-                                    g=galaxy['g'],
-                                    r=galaxy['r'],
-                                    i=galaxy['i'],
-                                    z=galaxy['z'],
-                                    Z_=galaxy['Z'],
-                                    Y=galaxy['Y'],
-                                    J=galaxy['J'],
-                                    H=galaxy['H'],
-                                    K=galaxy['K'],
-                                    WISEW1=galaxy['WISEW1'],
-                                    WISEW2=galaxy['WISEW2'],
-                                    WISEW3=galaxy['WISEW3'],
-                                    WISEW4=galaxy['WISEW4'],
-                                    PACS100=galaxy['PACS100'],
-                                    PACS160=galaxy['PACS160'],
-                                    SPIRE250=galaxy['SPIRE250'],
-                                    SPIRE350=galaxy['SPIRE350'],
-                                    SPIRE500=galaxy['SPIRE500'],
-                                    )).inserted_primary_key[0]
+    transaction = connection.begin()
 
-    input_snr_key = connection.execute(INPUT_JY.insert().values(type='reading_snr {0}'.format(input_key),
-                                    fuv=galaxy['fuv_snr'],
-                                    nuv=galaxy['nuv_snr'],
-                                    u=galaxy['u_snr'],
-                                    g=galaxy['g_snr'],
-                                    r=galaxy['r_snr'],
-                                    i=galaxy['i_snr'],
-                                    z=galaxy['z_snr'],
-                                    Z_=galaxy['Z_snr'],
-                                    Y=galaxy['Y_snr'],
-                                    J=galaxy['J_snr'],
-                                    H=galaxy['H_snr'],
-                                    K=galaxy['K_snr'],
-                                    WISEW1=galaxy['WISEW1_snr'],
-                                    WISEW2=galaxy['WISEW2_snr'],
-                                    WISEW3=galaxy['WISEW3_snr'],
-                                    WISEW4=galaxy['WISEW4_snr'],
-                                    PACS100=galaxy['PACS100_snr'],
-                                    PACS160=galaxy['PACS160_snr'],
-                                    SPIRE250=galaxy['SPIRE250_snr'],
-                                    SPIRE350=galaxy['SPIRE350_snr'],
-                                    SPIRE500=galaxy['SPIRE500_snr'],
-                                    )).inserted_primary_key[0]
-    
     connection.execute(NN_TRAIN.insert().values(run_id=run_id,
-                                             last_updated=func.now(),
-                                             redshift=galaxy['redshift'],
-                                             galaxy_number=galaxy['galaxy_number'],
-                                             input_Jy=input_key,
-                                             input_Jy_snr=input_snr_key
-                                             ))
+                       redshift=galaxy['redshift'],
+                       galaxy_id=galaxy['galaxy_number'],
+                       run_filename=sh_filename
+                       ))
+
+    connection.execute(INPUT_JY.insert().values(galaxy_id=galaxy['galaxy_number'],
+                       fuv=galaxy['fuv'],
+                       nuv=galaxy['nuv'],
+                       u=galaxy['u'],
+                       g=galaxy['g'],
+                       r=galaxy['r'],
+                       i=galaxy['i'],
+                       z=galaxy['z'],
+                       Z_=galaxy['Z'],
+                       Y=galaxy['Y'],
+                       J=galaxy['J'],
+                       H=galaxy['H'],
+                       K=galaxy['K'],
+                       WISEW1=galaxy['WISEW1'],
+                       WISEW2=galaxy['WISEW2'],
+                       WISEW3=galaxy['WISEW3'],
+                       WISEW4=galaxy['WISEW4'],
+                       PACS100=galaxy['PACS100'],
+                       PACS160=galaxy['PACS160'],
+                       SPIRE250=galaxy['SPIRE250'],
+                       SPIRE350=galaxy['SPIRE350'],
+                       SPIRE500=galaxy['SPIRE500'],
+                       fuv=galaxy['fuv_snr'],
+                       nuv=galaxy['nuv_snr'],
+                       u=galaxy['u_snr'],
+                       g=galaxy['g_snr'],
+                       r=galaxy['r_snr'],
+                       i=galaxy['i_snr'],
+                       z=galaxy['z_snr'],
+                       Z_=galaxy['Z_snr'],
+                       Y=galaxy['Y_snr'],
+                       J=galaxy['J_snr'],
+                       H=galaxy['H_snr'],
+                       K=galaxy['K_snr'],
+                       WISEW1=galaxy['WISEW1_snr'],
+                       WISEW2=galaxy['WISEW2_snr'],
+                       WISEW3=galaxy['WISEW3_snr'],
+                       WISEW4=galaxy['WISEW4_snr'],
+                       PACS100=galaxy['PACS100_snr'],
+                       PACS160=galaxy['PACS160_snr'],
+                       SPIRE250=galaxy['SPIRE250_snr'],
+                       SPIRE350=galaxy['SPIRE350_snr'],
+                       SPIRE500=galaxy['SPIRE500_snr'],
+                       ))
+    transaction.commit()
 
 
 def add_to_db(input, input_snr, output, best_fit_output, best_fit_model, best_fit_output_input, details):
 
     transaction = connection.begin()
 
-    input_key = connection.execute(INPUT.insert().values(type='fit',
-                    fuv=input['fuv'],
-                    nuv=input['nuv'],
-                    u=input['u'],
-                    g=input['g'],
-                    r=input['r'],
-                    i=input['i'],
-                    z=input['z'],
-                    Z_=input['Z'],
-                    Y=input['Y'],
-                    J=input['J'],
-                    H=input['H'],
-                    K=input['K'],
-                    WISEW1=input['WISEW1'],
-                    WISEW2=input['WISEW2'],
-                    WISEW3=input['WISEW3'],
-                    WISEW4=input['WISEW4'],
-                    PACS100=input['PACS100'],
-                    PACS160=input['PACS160'],
-                    SPIRE250=input['SPIRE250'],
-                    SPIRE350=input['SPIRE350'],
-                    SPIRE500=input['SPIRE500']
-                    )).inserted_primary_key[0]
-    
-    input_snr_key = connection.execute(INPUT.insert().values(type='fit_snr',
-                        fuv=input_snr['fuv'],
-                        nuv=input_snr['nuv'],
-                        u=input_snr['u'],
-                        g=input_snr['g'],
-                        r=input_snr['r'],
-                        i=input_snr['i'],
-                        z=input_snr['z'],
-                        Z_=input_snr['Z'],
-                        Y=input_snr['Y'],
-                        J=input_snr['J'],
-                        H=input_snr['H'],
-                        K=input_snr['K'],
-                        WISEW1=input_snr['WISEW1'],
-                        WISEW2=input_snr['WISEW2'],
-                        WISEW3=input_snr['WISEW3'],
-                        WISEW4=input_snr['WISEW4'],
-                        PACS100=input_snr['PACS100'],
-                        PACS160=input_snr['PACS160'],
-                        SPIRE250=input_snr['SPIRE250'],
-                        SPIRE350=input_snr['SPIRE350'],
-                        SPIRE500=input_snr['SPIRE500']
-                        )).inserted_primary_key[0]
-    
-    output_key = connection.execute(MEDIAN_OUTPUT.insert().values(xi_Wtot=output['xi_W^tot'],
-                                        ager=output['ager'],
-                                        tau_V=output['tau_V'],
-                                        agem=output['agem'],
-                                        tlastb=output['tlastb'],
-                                        Mstars=output['M(stars)'],
-                                        sfr29=output['sfr29'],
-                                        xi_PAHtot=output['xi_PAH^tot'],
-                                        f_muSFH=output['f_mu (SFH)'],
-                                        fb17=output['fb17'],
-                                        fb16=output['fb16'],
-                                        T_CISM=output['T_C^ISM'],
-                                        Ldust=output['Ldust'],
-                                        mu_parameter=output['mu parameter'],
-                                        xi_Ctot=output['xi_C^tot'],
-                                        f_muIR=output['f_mu (IR)'],
-                                        fb18=output['fb18'],
-                                        fb19=output['fb19'],
-                                        T_WBC=output['T_W^BC'],
-                                        SFR_0_1Gyr=output['SFR_0.1Gyr'],
-                                        fb29=output['fb29'],
-                                        sfr17=output['sfr17'],
-                                        sfr16=output['sfr16'],
-                                        sfr19=output['sfr19'],
-                                        sfr18=output['sfr18'],
-                                        tau_VISM=output['tau_V^ISM'],
-                                        sSFR_0_1Gyr=output['sSFR_0.1Gyr'],
-                                        metalicity_Z_Z0=output['metalicity Z/Zo'],
-                                        Mdust=output['M(dust)'],
-                                        xi_MIRtot=output['xi_MIR^tot'],
-                                        tform=output['tform'],
-                                        gamma=output['gamma']
-                                        )).inserted_primary_key[0]
+    head, tail = os.path.split(details['filename'])
+    gal_id = int(tail.split('.fit')[0])
 
-    best_fit_output_key = connection.execute(BEST_FIT_OUTPUT.insert().values(fmuSFH=best_fit_output['fmu(SFH)'],
-                                        fmuIR=best_fit_output['fmu(IR)'],
-                                        mu=best_fit_output['mu'],
-                                        tauv=best_fit_output['tauv'],
-                                        sSFR=best_fit_output['sSFR'],
-                                        m_asterisk=best_fit_output['M*'],
-                                        Ldust=best_fit_output['Ldust'],
-                                        T_WBC=best_fit_output['T_W^BC'],
-                                        T_CISM=best_fit_output['T_C^ISM'],
-                                        xi_Ctot=best_fit_output['xi_C^tot'],
-                                        xi_PAHtot=best_fit_output['xi_PAH^tot'],
-                                        xi_MIRtot=best_fit_output['xi_MIR^tot'],
-                                        xi_Wtot=best_fit_output['xi_MIR^tot'],
-                                        tvism=best_fit_output['tvism'],
-                                        Mdust=best_fit_output['Mdust'],
-                                        SFR=best_fit_output['SFR'],
-                                        )).inserted_primary_key[0]
+    connection.execute(NN_TRAIN.update().where(NN_TRAIN.c.galaxy_id == gal_id)
+                       .values(fit_filename=details['filename'])
+                       )
 
-    best_fit_output_inputs_key = connection.execute(BEST_FIT_OUTPUT_INPUT.insert().values(fuv=best_fit_output_input['fuv'],
+    connection.execute(INPUT.insert().values(galaxy_id=gal_id,
+                       fuv=input['fuv'],
+                       nuv=input['nuv'],
+                       u=input['u'],
+                       g=input['g'],
+                       r=input['r'],
+                       i=input['i'],
+                       z=input['z'],
+                       Z_=input['Z'],
+                       Y=input['Y'],
+                       J=input['J'],
+                       H=input['H'],
+                       K=input['K'],
+                       WISEW1=input['WISEW1'],
+                       WISEW2=input['WISEW2'],
+                       WISEW3=input['WISEW3'],
+                       WISEW4=input['WISEW4'],
+                       PACS100=input['PACS100'],
+                       PACS160=input['PACS160'],
+                       SPIRE250=input['SPIRE250'],
+                       SPIRE350=input['SPIRE350'],
+                       SPIRE500=input['SPIRE500'],
+                       fuv_snr=input_snr['fuv'],
+                       nuv_snr=input_snr['nuv'],
+                       u_snr=input_snr['u'],
+                       g_snr=input_snr['g'],
+                       r_snr=input_snr['r'],
+                       i_snr=input_snr['i'],
+                       z_snr=input_snr['z'],
+                       Z__snr=input_snr['Z'],
+                       Y_snr=input_snr['Y'],
+                       J_snr=input_snr['J'],
+                       H_snr=input_snr['H'],
+                       K_snr=input_snr['K'],
+                       WISEW1_snr=input_snr['WISEW1'],
+                       WISEW2_snr=input_snr['WISEW2'],
+                       WISEW3_snr=input_snr['WISEW3'],
+                       WISEW4_snr=input_snr['WISEW4'],
+                       PACS100_snr=input_snr['PACS100'],
+                       PACS160_snr=input_snr['PACS160'],
+                       SPIRE250_snr=input_snr['SPIRE250'],
+                       SPIRE350_snr=input_snr['SPIRE350'],
+                       SPIRE500_snr=input_snr['SPIRE500']
+                       ))
+
+    connection.execute(MEDIAN_OUTPUT.insert().values(galaxy_id=gal_id,
+                       xi_Wtot=output['xi_W^tot'],
+                       ager=output['ager'],
+                       tau_V=output['tau_V'],
+                       agem=output['agem'],
+                       tlastb=output['tlastb'],
+                       Mstars=output['M(stars)'],
+                       sfr29=output['sfr29'],
+                       xi_PAHtot=output['xi_PAH^tot'],
+                       f_muSFH=output['f_mu (SFH)'],
+                       fb17=output['fb17'],
+                       fb16=output['fb16'],
+                       T_CISM=output['T_C^ISM'],
+                       Ldust=output['Ldust'],
+                       mu_parameter=output['mu parameter'],
+                       xi_Ctot=output['xi_C^tot'],
+                       f_muIR=output['f_mu (IR)'],
+                       fb18=output['fb18'],
+                       fb19=output['fb19'],
+                       T_WBC=output['T_W^BC'],
+                       SFR_0_1Gyr=output['SFR_0.1Gyr'],
+                       fb29=output['fb29'],
+                       sfr17=output['sfr17'],
+                       sfr16=output['sfr16'],
+                       sfr19=output['sfr19'],
+                       sfr18=output['sfr18'],
+                       tau_VISM=output['tau_V^ISM'],
+                       sSFR_0_1Gyr=output['sSFR_0.1Gyr'],
+                       metalicity_Z_Z0=output['metalicity Z/Zo'],
+                       Mdust=output['M(dust)'],
+                       xi_MIRtot=output['xi_MIR^tot'],
+                       tform=output['tform'],
+                       gamma=output['gamma']
+                       ))
+
+    connection.execute(BEST_FIT_OUTPUT.insert().values(galaxy_id=gal_id,
+                       fmuSFH=best_fit_output['fmu(SFH)'],
+                       fmuIR=best_fit_output['fmu(IR)'],
+                       mu=best_fit_output['mu'],
+                       tauv=best_fit_output['tauv'],
+                       sSFR=best_fit_output['sSFR'],
+                       m_asterisk=best_fit_output['M*'],
+                       Ldust=best_fit_output['Ldust'],
+                       T_WBC=best_fit_output['T_W^BC'],
+                       T_CISM=best_fit_output['T_C^ISM'],
+                       xi_Ctot=best_fit_output['xi_C^tot'],
+                       xi_PAHtot=best_fit_output['xi_PAH^tot'],
+                       xi_MIRtot=best_fit_output['xi_MIR^tot'],
+                       xi_Wtot=best_fit_output['xi_MIR^tot'],
+                       tvism=best_fit_output['tvism'],
+                       Mdust=best_fit_output['Mdust'],
+                       SFR=best_fit_output['SFR'],
+                       ))
+
+    connection.execute(BEST_FIT_HISTOGRAM.insert().values(galaxy_id=gal_id,
+                                        fuv=best_fit_output_input['fuv'],
                                         nuv=best_fit_output_input['nuv'],
                                         u=best_fit_output_input['u'],
                                         g=best_fit_output_input['g'],
@@ -447,27 +225,15 @@ def add_to_db(input, input_snr, output, best_fit_output, best_fit_model, best_fi
                                         SPIRE250=best_fit_output_input['SPIRE250'],
                                         SPIRE350=best_fit_output_input['SPIRE350'],
                                         SPIRE500=best_fit_output_input['SPIRE500']
-                                        )).inserted_primary_key[0]
+                                        ))
 
-    best_fit_output_model_key = connection.execute(BEST_FIT_MODEL.insert().values(i_sfh=best_fit_model['i_sfh'],
+    connection.execute(BEST_FIT_MODEL.insert().values(galaxy_id=gal_id,
+                                        i_sfh=best_fit_model['i_sfh'],
                                         i_ir=best_fit_model['i_ir'],
                                         chi2=best_fit_model['chi2'],
                                         redshift=best_fit_model['redshift']
-                                        )).inserted_primary_key[0]
+                                        ))
 
-    head, tail = os.path.split(details['filename'])
-
-    connection.execute(NN_TRAIN.update().where(NN_TRAIN.c.galaxy_number == int(tail.split('.fit')[0]))
-                             .values(run_id=details['run_id'],
-                             filename=details['filename'],
-                             last_updated=func.now(),
-                             input=input_key,
-                             input_snr=input_snr_key,
-                             output_median=output_key,
-                             output_best_fit=best_fit_output_key,
-                             output_best_fit_inputs=best_fit_output_inputs_key,
-                             output_best_fit_model=best_fit_output_model_key
-                             ))
     transaction.commit()
 
 
@@ -536,6 +302,7 @@ def map_inputrow2list_Jy(row, row_snr):
     out_list[41] = row_snr['SPIRE500']
 
     return out_list
+
 
 def map_inputrow2list(row, row_snr):
     out_list = [None] * 42
@@ -795,7 +562,7 @@ def get_train_test_data(num_test, num_train, run_folder, single_value=None, inpu
 
         elif output_type == 'best_fit_inputs':
             output_id = row['output_best_fit_inputs']
-            output_row = connection.execute(select([BEST_FIT_OUTPUT_INPUT]).where(BEST_FIT_OUTPUT_INPUT.c.best_fit_output_input_id == output_id)).first()
+            output_row = connection.execute(select([BEST_FIT_HISTOGRAM]).where(BEST_FIT_HISTOGRAM.c.best_fit_output_input_id == output_id)).first()
             if not output_row:
                 continue
             row_outputs = map_best_fit_output_inputs2list(output_row)
