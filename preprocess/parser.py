@@ -204,7 +204,7 @@ def parse_process_file(filename):
                 values = stripped[6:-15].split()
                 # 6 = echo "
                 # -14 = " > mygals.dat
-                print values
+                #print values
                 galaxies.append(import_to_dict(input_Jy_keys, string2float(values)))
                 continue
 
