@@ -1,0 +1,10 @@
+#!/home/ict310/Studentship1/git/magphys_nn/py_env/bin/python
+# EASY-INSTALL-ENTRY-SCRIPT: 'sc0ns==2.2.0-1','console_scripts','scons'
+__requires__ = 'sc0ns==2.2.0-1'
+import sys
+from pkg_resources import load_entry_point
+
+if __name__ == '__main__':
+    sys.exit(
+        load_entry_point('sc0ns==2.2.0-1', 'console_scripts', 'scons')()
+    )

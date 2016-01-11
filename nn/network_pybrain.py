@@ -19,42 +19,44 @@ import pickle
 from pybrain.structure import *
 from pybrain.supervised import *
 from pybrain.datasets import *
+from pybrain.tools.neuralnets import NNregression
+import thread
 
-tmp_file = '/tmp/nn_last_tmp_input_pybrain.tmp'
+tmp_file = 'nn_last_tmp_input_pybrain.tmp'
 
-
-def standardise_2Darray(array):
-
-    x_len = len(array)
-    y_len = len(array[0])
-
-    means = [0] * len(array[0])
-    ranges = [0] * len(array[0])
-
-    for y in range(0, y_len):
-        mean = 0
-        largest = array[0][y]
-        smallest = array[0][y]
-        for x in range(0, x_len):
-            mean += array[x][y]
-
-            if array[x][y] > largest:
-                largest = array[x][y]
-            elif array[x][y] < smallest:
-                smallest = array[x][y]
-
-        mean /= float(x_len)
-
-        ranged = largest - smallest
-
-        for x in range(0, x_len):
-            array[x][y] = (array[x][y] - mean) / float(ranged)
-
-        means[y] = mean
-        ranges[y] = ranged
-
-    return means, ranges, array
-
+output_names =[
+'ager',
+'tau_V',
+'agem',
+'tlastb',
+'Mstars',
+'xi_Wtot',
+'sfr29',
+'xi_PAHtot',
+'f_muSFH',
+'fb17',
+'fb16',
+'T_CISM',
+'Ldust',
+'mu_parameter',
+'xi_Ctot',
+'f_muIR',
+'fb18',
+'fb19',
+'T_WBC',
+'SFR_0_1Gyr',
+'fb29',
+'sfr17',
+'sfr16',
+'sfr19',
+'sfr18',
+'tau_VISM',
+'sSFR_0_1Gyr',
+'metalicity_Z_Z0',
+'Mdust',
+'xi_MIRtot',
+'tform',
+'gamma']
 
 def normalise_2Darray(array, ignore=0):
     x_len = len(array)
@@ -97,7 +99,7 @@ def check_temp(filename, config):
         with open(filename) as f:
             header = pickle.load(f)
 
-            for key in header:
+            for key in config:
                 if header[key] != config[key]:
                     return False
 
@@ -146,9 +148,9 @@ input_type = 'normal'
 repeat_redshift = 1
 
 
-def run_network(single_value=None):
+def run_network(single_value=None, input_filter_types=None):
 
-    nn_config_dict = {'test':test_data, 'train':train_data, 'run':run_id, 'input_type': input_type, 'output_type':output_type, 'repeat_redshift':repeat_redshift, 'value':single_value}
+    nn_config_dict = {'test':test_data, 'train':train_data, 'run':run_id, 'input_type': input_type, 'output_type':output_type, 'repeat_redshift':repeat_redshift, 'value':single_value, 'input_filter_types':input_filter_types}
 
     if check_temp(tmp_file, nn_config_dict):
         print 'Correct temp file exists at {0}, loading from temp'.format(tmp_file)
@@ -156,34 +158,18 @@ def run_network(single_value=None):
         print 'Done.'
     else:
         print 'No temp file, reading from database.'
-        test_in, test_out, train_in, train_out, galaxy_ids = get_train_test_data(test_data, train_data, run_id, input_type=input_type, output_type=output_type, repeat_redshift=repeat_redshift, single_value=single_value)
+        test_in, test_out, train_in, train_out, galaxy_ids = get_train_test_data(test_data, train_data, input_type=input_type, output_type=output_type, repeat_redshift=repeat_redshift, single_value=single_value, input_filter_types=input_filter_types)
 
         print 'Done. Writing temp file for next time.'
         write_file(tmp_file, nn_config_dict, test_in, test_out, train_in, train_out, galaxy_ids)
         print 'Done. Temp file written to {0}'.format(tmp_file)
 
-    """
-    redshift_train = []
-    redshift_test = []
-    for i in range(0, len(train_in)):
-        redshift_train.append([train_in[i][0]])
-
-    for i in range(0, len(test_in)):
-        redshift_test.append([test_in[i][0]])
-    """
-    #redshift_test = np.array(redshift_test)
-    #redshift_train = np.array(redshift_train)
-
-    print 'Normalising...'
+    print '\nNormalising...'
     train_in_min, train_in_max, train_in = normalise_2Darray(train_in)
-    train_out_min, train_out_max, train_out = normalise_2Darray(train_out)
-
+    #train_out_min, train_out_max, train_out = normalise_2Darray(train_out)
 
     test_in_min, test_in_max, test_in = normalise_2Darray(test_in)
-    test_out_min, test_out_max, test_out = normalise_2Darray(test_out)
-
-    #redshift_train_min, redshift_train_max, redshift_train = normalise_2Darray(redshift_train)
-    #redshift_test_min, redshift_test_max, redshift_test = normalise_2Darray(redshift_test)
+    #test_out_min, test_out_max, test_out = normalise_2Darray(test_out)
 
     print 'Normalising done.'
 
@@ -191,9 +177,21 @@ def run_network(single_value=None):
     print np.shape(train_out)
     print np.shape(test_in)
     print np.shape(test_out)
-    #print np.shape(redshift_train)
 
-    data_set = SupervisedDataSet(40+repeat_redshift, 32)
+    input_dim = 0
+
+    if 'optical' in input_filter_types:
+        input_dim += 10
+
+    if 'ir' in input_filter_types:
+        input_dim += 9
+
+    if 'uv' in input_filter_types:
+        input_dim += 2
+
+    input_dim *= 2
+
+    data_set = SupervisedDataSet(input_dim+repeat_redshift, 1)
 
     for i in range(0, len(train_in)):
         data_set.addSample(train_in[i], train_out[i])
@@ -202,11 +200,11 @@ def run_network(single_value=None):
 
     network = FeedForwardNetwork()
 
-    input_layer = LinearLayer(40+repeat_redshift,'Input')
+    input_layer = TanhLayer(input_dim+repeat_redshift,'Input')
     hidden1 = TanhLayer(50,'hidden1')
     hidden2 = TanhLayer(50,'hidden2')
     hidden3 = TanhLayer(50,'hidden3')
-    output_layer = LinearLayer(32, 'output')
+    output_layer = LinearLayer(1, 'output')
 
     network.addInputModule(input_layer)
     network.addModule(hidden1)
@@ -221,12 +219,12 @@ def run_network(single_value=None):
 
     network.sortModules()
 
-    trainer = BackpropTrainer(network, data_set)
+    trainer = BackpropTrainer(network, data_set, verbose=True)
 
     print "Compiled."
 
     epochs = 0
-    do_test = 100
+    do_test = 10
     trained = False
     while not trained:
         error = trainer.train()
@@ -235,24 +233,36 @@ def run_network(single_value=None):
 
         print 'Error rate at epoch {0}: {1}'.format(epochs, error)
 
-        if error < 0.001 or epochs == 1000:
+        if error < 0.001 or epochs == 500:
             trained = True
 
         if do_test == 0:
-            for i in range(0, 10):
-                test_to_use = rand.randint(0, test_data - 1)
-                ans = network.activate(np.array(test_in[test_to_use]))
-                #ans = graph.predict({'input':np.array([test_in[test_to_use]]), 'redshift':np.array([redshift_test[test_to_use]])})
-                #f.write('Test {0} for epoch {1}\n'.format(i, total_epoch))
-                print '\nGalaxy number = {0}\n'.format(galaxy_ids[test_to_use])
-                print 'Output   Correct\n'
-                for a in range(0, len(test_out[test_to_use])):
-                    print'{0}  =   {1}\n'.format(denormalise_value(ans[a], train_out_min[a], train_out_max[a]), denormalise_value(test_out[test_to_use][a], test_out_min[a], test_out_max[a]))
-                print '\n\n'
-            do_test = 100
+            with open('pybrain_inputs_{0}_outputs_{1}.txt'.format(input_filter_types, output_names[single_value]), 'w') as f:
+                for i in range(0, 20):
+
+                    test_to_use = rand.randint(0, test_data - 1)
+                    ans = network.activate(np.array(test_in[test_to_use]))
+
+                    #f.write('Test {0} for epoch {1}\n'.format(i, total_epoch))
+                    f.write('\nGalaxy number = {0}\n'.format(galaxy_ids[test_to_use]))
+                    f.write('Inputs: ')
+                    for item in test_in[test_to_use]:
+                        f.write(str(item))
+                    f.write('\nOutput   Correct\n')
+                    for a in range(0, len(test_out[test_to_use])):
+                        #f.write('{0}: {1}  =   {2}\n'.format(output_names[a], denormalise_value(ans[a], train_out_min[a], train_out_max[a]), denormalise_value(test_out[test_to_use][a], test_out_min[a], test_out_max[a])))
+                        f.write('{0}: {1}  =   {2}\n'.format(output_names[a], ans[a], test_out[test_to_use][a]))
+                    f.write('\n\n')
+
+            do_test = 10
 
 if __name__ == '__main__':
-    run_network()
+    filters = ['ir', 'uv', 'optical']
+    parameters = range(0, 15)
+
+    #for filter in filters:
+    for parameter in parameters:
+        run_network(input_filter_types=['ir', 'uv', 'optical'], single_value=parameter)
 
 print "Done"
 

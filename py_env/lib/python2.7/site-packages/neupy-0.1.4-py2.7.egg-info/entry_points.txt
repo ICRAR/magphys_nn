@@ -1,0 +1,3 @@
+[console_scripts]
+neupy = neupy.commands.main:main
+

@@ -253,189 +253,312 @@ def row2dict(row):
     return d
 
 
-def map_inputrow2list_Jy(row, row_snr):
-    out_list = [None] * 42
+def map_inputrow2list_Jy(row, input_filter_types):
+    if input_filter_types is None:
+        out_list = [None] * 42
 
-    out_list[0] = row['fuv']
-    out_list[2] = row['nuv']
-    out_list[4] = row['u']
-    out_list[6] = row['g']
-    out_list[8] = row['r']
-    out_list[10] = row['i']
-    out_list[12] = row['z']
-    out_list[14] = row['Z_']
-    out_list[16] = row['Y']
-    out_list[18] = row['J']
-    out_list[20] = row['H']
-    out_list[22] = row['K']
-    out_list[24] = row['WISEW1']
-    out_list[26] = row['WISEW2']
-    out_list[28] = row['WISEW3']
-    out_list[30] = row['WISEW4']
-    out_list[32] = row['PACS100']
-    out_list[34] = row['PACS160']
-    out_list[36] = row['SPIRE250']
-    out_list[38] = row['SPIRE350']
-    out_list[40] = row['SPIRE500']
+        out_list[0] = row['fuv']
+        out_list[2] = row['nuv']
+        out_list[4] = row['u']
+        out_list[6] = row['g']
+        out_list[8] = row['r']
+        out_list[10] = row['i']
+        out_list[12] = row['z']
+        out_list[14] = row['Z_']
+        out_list[16] = row['Y']
+        out_list[18] = row['J']
+        out_list[20] = row['H']
+        out_list[22] = row['K']
+        out_list[24] = row['WISEW1']
+        out_list[26] = row['WISEW2']
+        out_list[28] = row['WISEW3']
+        out_list[30] = row['WISEW4']
+        out_list[32] = row['PACS100']
+        out_list[34] = row['PACS160']
+        out_list[36] = row['SPIRE250']
+        out_list[38] = row['SPIRE350']
+        out_list[40] = row['SPIRE500']
 
-    # SNR values, suitable for NN input
-    out_list[1] = row_snr['fuv']
-    out_list[3] = row_snr['nuv']
-    out_list[5] = row_snr['u']
-    out_list[7] = row_snr['g']
-    out_list[9] = row_snr['r']
-    out_list[11] = row_snr['i']
-    out_list[13] = row_snr['z']
-    out_list[15] = row_snr['Z_']
-    out_list[17] = row_snr['Y']
-    out_list[19] = row_snr['J']
-    out_list[21] = row_snr['H']
-    out_list[23] = row_snr['K']
-    out_list[25] = row_snr['WISEW1']
-    out_list[27] = row_snr['WISEW2']
-    out_list[29] = row_snr['WISEW3']
-    out_list[31] = row_snr['WISEW4']
-    out_list[33] = row_snr['PACS100']
-    out_list[35] = row_snr['PACS160']
-    out_list[37] = row_snr['SPIRE250']
-    out_list[39] = row_snr['SPIRE350']
-    out_list[41] = row_snr['SPIRE500']
+        # SNR values, suitable for NN input
+        out_list[1] = row['fuv_snr']
+        out_list[3] = row['nuv_snr']
+        out_list[5] = row['u_snr']
+        out_list[7] = row['g_snr']
+        out_list[9] = row['r_snr']
+        out_list[11] = row['i_snr']
+        out_list[13] = row['z_snr']
+        out_list[15] = row['Z__snr']
+        out_list[17] = row['Y_snr']
+        out_list[19] = row['J_snr']
+        out_list[21] = row['H_snr']
+        out_list[23] = row['K_snr']
+        out_list[25] = row['WISEW1_snr']
+        out_list[27] = row['WISEW2_snr']
+        out_list[29] = row['WISEW3_snr']
+        out_list[31] = row['WISEW4_snr']
+        out_list[33] = row['PACS100_snr']
+        out_list[35] = row['PACS160_snr']
+        out_list[37] = row['SPIRE250_snr']
+        out_list[39] = row['SPIRE350_snr']
+        out_list[41] = row['SPIRE500_snr']
+
+    else:
+        out_list = []
+        if 'optical' in input_filter_types:
+            out_list.append(row['u'])
+            out_list.append(row['u_snr'])
+            out_list.append(row['g'])
+            out_list.append(row['g_snr'])
+            out_list.append(row['r'])
+            out_list.append(row['r_snr'])
+            out_list.append(row['i'])
+            out_list.append(row['i_snr'])
+            out_list.append(row['z'])
+            out_list.append(row['z_snr'])
+            out_list.append(row['Z_'])
+            out_list.append(row['Z__snr'])
+            out_list.append(row['Y'])
+            out_list.append(row['Y_snr'])
+            out_list.append(row['J'])
+            out_list.append(row['J_snr'])
+            out_list.append(row['H'])
+            out_list.append(row['H_snr'])
+            out_list.append(row['K'])
+            out_list.append(row['K_snr'])
+
+        if 'ir' in input_filter_types:
+            out_list.append(row['WISEW1'])
+            out_list.append(row['WISEW1_snr'])
+            out_list.append(row['WISEW2'])
+            out_list.append(row['WISEW2_snr'])
+            out_list.append(row['WISEW3'])
+            out_list.append(row['WISEW3_snr'])
+            out_list.append(row['WISEW4'])
+            out_list.append(row['WISEW4_snr'])
+            out_list.append(row['PACS100'])
+            out_list.append(row['PACS100_snr'])
+            out_list.append(row['PACS160'])
+            out_list.append(row['PACS160_snr'])
+            out_list.append(row['SPIRE250'])
+            out_list.append(row['SPIRE250_snr'])
+            out_list.append(row['SPIRE350'])
+            out_list.append(row['SPIRE350_snr'])
+            out_list.append(row['SPIRE500'])
+            out_list.append(row['SPIRE500_snr'])
+
+        if 'uv' in input_filter_types:
+            out_list.append(row['fuv'])
+            out_list.append(row['fuv_snr'])
+            out_list.append(row['nuv'])
+            out_list.append(row['nuv_snr'])
 
     return out_list
 
 
-def map_inputrow2list(row, row_snr):
-    out_list = [None] * 42
-    #out_list = [None] * 20
-    #"""
-    # Normal values, suitable for NN input
-    """
-    out_list[0] = row['fuv']
-    out_list[1] = row['nuv']
-    out_list[2] = row['u']
-    out_list[3] = row['g']
-    out_list[4] = row['r']
-    out_list[5] = row['z']
-    out_list[6] = row['Z_']
-    out_list[7] = row['Y']
-    out_list[8] = row['J']
-    out_list[9] = row['H']
-    out_list[10] = row['K']
-    out_list[11] = row['WISEW1']
-    out_list[12] = row['WISEW2']
-    out_list[13] = row['WISEW3']
-    out_list[14] = row['WISEW4']
-    out_list[15] = row['PACS100']
-    out_list[16] = row['PACS160']
-    out_list[17] = row['SPIRE250']
-    out_list[18] = row['SPIRE350']
-    out_list[19] = row['SPIRE500']
 
-    out_list[20] = row_snr['fuv']
-    out_list[21] = row_snr['nuv']
-    out_list[22] = row_snr['u']
-    out_list[23] = row_snr['g']
-    out_list[24] = row_snr['r']
-    out_list[25] = row_snr['z']
-    out_list[26] = row_snr['Z_']
-    out_list[27] = row_snr['Y']
-    out_list[28] = row_snr['J']
-    out_list[29] = row_snr['H']
-    out_list[30] = row_snr['K']
-    out_list[31] = row_snr['WISEW1']
-    out_list[32] = row_snr['WISEW2']
-    out_list[33] = row_snr['WISEW3']
-    out_list[34] = row_snr['WISEW4']
-    out_list[35] = row_snr['PACS100']
-    out_list[36] = row_snr['PACS160']
-    out_list[37] = row_snr['SPIRE250']
-    out_list[38] = row_snr['SPIRE350']
-    out_list[39] = row_snr['SPIRE500']
-    """
-    out_list[0] = row['fuv']
-    out_list[2] = row['nuv']
-    out_list[4] = row['u']
-    out_list[6] = row['g']
-    out_list[8] = row['r']
-    out_list[10] = row['i']
-    out_list[12] = row['z']
-    out_list[14] = row['Z_']
-    out_list[16] = row['Y']
-    out_list[18] = row['J']
-    out_list[20] = row['H']
-    out_list[22] = row['K']
-    out_list[24] = row['WISEW1']
-    out_list[26] = row['WISEW2']
-    out_list[28] = row['WISEW3']
-    out_list[30] = row['WISEW4']
-    out_list[32] = row['PACS100']
-    out_list[34] = row['PACS160']
-    out_list[36] = row['SPIRE250']
-    out_list[38] = row['SPIRE350']
-    out_list[40] = row['SPIRE500']
+def map_inputrow2list(row, input_filter_types):
+    if input_filter_types is None:
+        out_list = [None] * 42
+        #out_list = [None] * 20
+        #"""
+        # Normal values, suitable for NN input
+        """
+        out_list[0] = row['fuv']
+        out_list[1] = row['nuv']
+        out_list[2] = row['u']
+        out_list[3] = row['g']
+        out_list[4] = row['r']
+        out_list[5] = row['z']
+        out_list[6] = row['Z_']
+        out_list[7] = row['Y']
+        out_list[8] = row['J']
+        out_list[9] = row['H']
+        out_list[10] = row['K']
+        out_list[11] = row['WISEW1']
+        out_list[12] = row['WISEW2']
+        out_list[13] = row['WISEW3']
+        out_list[14] = row['WISEW4']
+        out_list[15] = row['PACS100']
+        out_list[16] = row['PACS160']
+        out_list[17] = row['SPIRE250']
+        out_list[18] = row['SPIRE350']
+        out_list[19] = row['SPIRE500']
 
-    # SNR values, suitable for NN input
-    out_list[1] = row_snr['fuv']
-    out_list[3] = row_snr['nuv']
-    out_list[5] = row_snr['u']
-    out_list[7] = row_snr['g']
-    out_list[9] = row_snr['r']
-    out_list[11] = row_snr['i']
-    out_list[13] = row_snr['z']
-    out_list[15] = row_snr['Z_']
-    out_list[17] = row_snr['Y']
-    out_list[19] = row_snr['J']
-    out_list[21] = row_snr['H']
-    out_list[23] = row_snr['K']
-    out_list[25] = row_snr['WISEW1']
-    out_list[27] = row_snr['WISEW2']
-    out_list[29] = row_snr['WISEW3']
-    out_list[31] = row_snr['WISEW4']
-    out_list[33] = row_snr['PACS100']
-    out_list[35] = row_snr['PACS160']
-    out_list[37] = row_snr['SPIRE250']
-    out_list[39] = row_snr['SPIRE350']
-    out_list[41] = row_snr['SPIRE500']
+        out_list[20] = row_snr['fuv']
+        out_list[21] = row_snr['nuv']
+        out_list[22] = row_snr['u']
+        out_list[23] = row_snr['g']
+        out_list[24] = row_snr['r']
+        out_list[25] = row_snr['z']
+        out_list[26] = row_snr['Z_']
+        out_list[27] = row_snr['Y']
+        out_list[28] = row_snr['J']
+        out_list[29] = row_snr['H']
+        out_list[30] = row_snr['K']
+        out_list[31] = row_snr['WISEW1']
+        out_list[32] = row_snr['WISEW2']
+        out_list[33] = row_snr['WISEW3']
+        out_list[34] = row_snr['WISEW4']
+        out_list[35] = row_snr['PACS100']
+        out_list[36] = row_snr['PACS160']
+        out_list[37] = row_snr['SPIRE250']
+        out_list[38] = row_snr['SPIRE350']
+        out_list[39] = row_snr['SPIRE500']
+        """
+        out_list[0] = row['fuv']
+        out_list[2] = row['nuv']
+        out_list[4] = row['u']
+        out_list[6] = row['g']
+        out_list[8] = row['r']
+        out_list[10] = row['i']
+        out_list[12] = row['z']
+        out_list[14] = row['Z_']
+        out_list[16] = row['Y']
+        out_list[18] = row['J']
+        out_list[20] = row['H']
+        out_list[22] = row['K']
+        out_list[24] = row['WISEW1']
+        out_list[26] = row['WISEW2']
+        out_list[28] = row['WISEW3']
+        out_list[30] = row['WISEW4']
+        out_list[32] = row['PACS100']
+        out_list[34] = row['PACS160']
+        out_list[36] = row['SPIRE250']
+        out_list[38] = row['SPIRE350']
+        out_list[40] = row['SPIRE500']
+
+        # SNR values, suitable for NN input
+        out_list[1] = row['fuv_snr']
+        out_list[3] = row['nuv_snr']
+        out_list[5] = row['u_snr']
+        out_list[7] = row['g_snr']
+        out_list[9] = row['r_snr']
+        out_list[11] = row['i_snr']
+        out_list[13] = row['z_snr']
+        out_list[15] = row['Z__snr']
+        out_list[17] = row['Y_snr']
+        out_list[19] = row['J_snr']
+        out_list[21] = row['H_snr']
+        out_list[23] = row['K_snr']
+        out_list[25] = row['WISEW1_snr']
+        out_list[27] = row['WISEW2_snr']
+        out_list[29] = row['WISEW3_snr']
+        out_list[31] = row['WISEW4_snr']
+        out_list[33] = row['PACS100_snr']
+        out_list[35] = row['PACS160_snr']
+        out_list[37] = row['SPIRE250_snr']
+        out_list[39] = row['SPIRE350_snr']
+        out_list[41] = row['SPIRE500_snr']
+
+    else:
+        out_list = []
+        if 'optical' in input_filter_types:
+            out_list.append(row['u'])
+            out_list.append(row['u_snr'])
+            out_list.append(row['g'])
+            out_list.append(row['g_snr'])
+            out_list.append(row['r'])
+            out_list.append(row['r_snr'])
+            out_list.append(row['i'])
+            out_list.append(row['i_snr'])
+            out_list.append(row['z'])
+            out_list.append(row['z_snr'])
+            out_list.append(row['Z_'])
+            out_list.append(row['Z__snr'])
+            out_list.append(row['Y'])
+            out_list.append(row['Y_snr'])
+            out_list.append(row['J'])
+            out_list.append(row['J_snr'])
+            out_list.append(row['H'])
+            out_list.append(row['H_snr'])
+            out_list.append(row['K'])
+            out_list.append(row['K_snr'])
+
+        if 'ir' in input_filter_types:
+            out_list.append(row['WISEW1'])
+            out_list.append(row['WISEW1_snr'])
+            out_list.append(row['WISEW2'])
+            out_list.append(row['WISEW2_snr'])
+            out_list.append(row['WISEW3'])
+            out_list.append(row['WISEW3_snr'])
+            out_list.append(row['WISEW4'])
+            out_list.append(row['WISEW4_snr'])
+            out_list.append(row['PACS100'])
+            out_list.append(row['PACS100_snr'])
+            out_list.append(row['PACS160'])
+            out_list.append(row['PACS160_snr'])
+            out_list.append(row['SPIRE250'])
+            out_list.append(row['SPIRE250_snr'])
+            out_list.append(row['SPIRE350'])
+            out_list.append(row['SPIRE350_snr'])
+            out_list.append(row['SPIRE500'])
+            out_list.append(row['SPIRE500_snr'])
+
+        if 'uv' in input_filter_types:
+            out_list.append(row['fuv'])
+            out_list.append(row['fuv_snr'])
+            out_list.append(row['nuv'])
+            out_list.append(row['nuv_snr'])
 
     return out_list
 
 
 def map_outputrow2list(row):
-    out_list = [None] * 32
+    out_list = [None] * 15
 
+    out_list[0] = row['tau_V']
+    out_list[1] = row['Mstars']
+    out_list[2] = row['xi_Wtot']
+    out_list[3] = row['xi_PAHtot']
+    out_list[4] = row['f_muSFH']
+    out_list[5] = row['T_CISM']
+    out_list[6] = row['Ldust']
+    out_list[7] = row['mu_parameter']
+    out_list[8] = row['xi_Ctot']
+    out_list[9] = row['f_muIR']
+    out_list[10] = row['T_WBC']
+    out_list[11] = row['tau_VISM']
+    out_list[12] = row['sSFR_0_1Gyr']
+    out_list[13] = row['Mdust']
+    out_list[14] = row['xi_MIRtot']
+
+
+
+    """
     # Median output values
     out_list[0] = row['ager']
-    out_list[1] = row['tau_V']
+    #out_list[1] = row['tau_V']
     out_list[2] = row['agem']
     out_list[3] = row['tlastb']
-    out_list[4] = row['Mstars']
-    out_list[5] = row['xi_Wtot']
+    #out_list[4] = row['Mstars']
+    #out_list[5] = row['xi_Wtot']
     out_list[6] = row['sfr29']
-    out_list[7] = row['xi_PAHtot']
-    out_list[8] = row['f_muSFH']
+    #out_list[7] = row['xi_PAHtot']
+    #out_list[8] = row['f_muSFH']
     out_list[9] = row['fb17']
     out_list[10] = row['fb16']
-    out_list[11] = row['T_CISM']
-    out_list[12] = row['Ldust']
-    out_list[13] = row['mu_parameter']
-    out_list[14] = row['xi_Ctot']
-    out_list[15] = row['f_muIR']
+    #out_list[11] = row['T_CISM']
+    #out_list[12] = row['Ldust']
+    #out_list[13] = row['mu_parameter']
+    #out_list[14] = row['xi_Ctot']
+    #out_list[15] = row['f_muIR']
     out_list[16] = row['fb18']
     out_list[17] = row['fb19']
-    out_list[18] = row['T_WBC']
+    #out_list[18] = row['T_WBC']
     out_list[19] = row['SFR_0_1Gyr']
     out_list[20] = row['fb29']
     out_list[21] = row['sfr17']
     out_list[22] = row['sfr16']
     out_list[23] = row['sfr19']
     out_list[24] = row['sfr18']
-    out_list[25] = row['tau_VISM']
-    out_list[26] = row['sSFR_0_1Gyr']
+    #out_list[25] = row['tau_VISM']
+    #out_list[26] = row['sSFR_0_1Gyr']
     out_list[27] = row['metalicity_Z_Z0']
-    out_list[28] = row['Mdust']
-    out_list[29] = row['xi_MIRtot']
+    #out_list[28] = row['Mdust']
+    #out_list[29] = row['xi_MIRtot']
     out_list[30] = row['tform']
     out_list[31] = row['gamma']
+    """
 
     return out_list
 
@@ -515,18 +638,20 @@ def check_valid_row(row):
     return True
 
 
-def get_train_test_data(num_test, num_train, run_folder, single_value=None, input_type='normal', output_type='median', repeat_redshift=1):
+def get_train_test_data(num_test, num_train, single_value=None, input_type='normal', output_type='median', repeat_redshift=1, input_filter_types=None):
 
     total_to_get = num_train+num_test
-    count = connection.execute(select([func.count(NN_TRAIN)]).where(NN_TRAIN.c.run_id.endswith(run_folder)).order_by(ffunc.random()).limit(total_to_get + total_to_get*0.05)).first()[0]
+    count = connection.execute(select([func.count(NN_TRAIN)]).where(NN_TRAIN.c.fit_filename != None)
+                               .order_by(ffunc.random()).limit(total_to_get + total_to_get*0.05)).first()[0]
 
     print '{0} entries available'.format(count)
     if count < total_to_get:
-        print "Error {0}".format(count)
-        return None, None, None, None, None
+        total_to_get = count
+        print 'Could not find {0}, using {1} instead'.format(total_to_get, count)
 
     print 'Getting indexes for {0} entries'.format(count)
-    result = connection.execute(select([NN_TRAIN]).where(NN_TRAIN.c.run_id.endswith(run_folder)).order_by(ffunc.random())).fetchall()
+    result = connection.execute(select([NN_TRAIN]).where(NN_TRAIN.c.fit_filename != None)
+                                .order_by(ffunc.random())).fetchall()
 
     # Train and test sets are now separated, need to get the actual data now.
 
@@ -540,29 +665,25 @@ def get_train_test_data(num_test, num_train, run_folder, single_value=None, inpu
     for row in result:
 
         if output_type == 'median':
-            output_id = row['output_median']
-            output_row = connection.execute(select([MEDIAN_OUTPUT]).where(MEDIAN_OUTPUT.c.median_output_id == output_id)).first()
+            output_row = connection.execute(select([MEDIAN_OUTPUT]).where(MEDIAN_OUTPUT.c.galaxy_id == row['galaxy_id'])).first()
             if not output_row:
                 continue
             row_outputs = map_outputrow2list(output_row)
 
         elif output_type == 'best_fit':
-            output_id = row['output_best_fit']
-            output_row = connection.execute(select([BEST_FIT_OUTPUT]).where(BEST_FIT_OUTPUT.c.best_fit_output_id == output_id)).first()
+            output_row = connection.execute(select([BEST_FIT_OUTPUT]).where(BEST_FIT_OUTPUT.c.galaxy_id == row['galaxy_id'])).first()
             if not output_row:
                 continue
             row_outputs = map_best_fit_output2list(output_row)
 
         elif output_type == 'best_fit_model':
-            output_id = row['output_best_fit_model']
-            output_row = connection.execute(select([BEST_FIT_MODEL]).where(BEST_FIT_MODEL.c.best_fit_model_id == output_id)).first()
+            output_row = connection.execute(select([BEST_FIT_MODEL]).where(BEST_FIT_MODEL.c.galaxy_id == row['galaxy_id'])).first()
             if not output_row:
                 continue
             row_outputs = map_best_fit_model_output2list(output_row)
 
         elif output_type == 'best_fit_inputs':
-            output_id = row['output_best_fit_inputs']
-            output_row = connection.execute(select([BEST_FIT_HISTOGRAM]).where(BEST_FIT_HISTOGRAM.c.best_fit_output_input_id == output_id)).first()
+            output_row = connection.execute(select([BEST_FIT_HISTOGRAM]).where(BEST_FIT_HISTOGRAM.c.galaxy_id == row['galaxy_id'])).first()
             if not output_row:
                 continue
             row_outputs = map_best_fit_output_inputs2list(output_row)
@@ -570,31 +691,24 @@ def get_train_test_data(num_test, num_train, run_folder, single_value=None, inpu
             raise Exception('Invalid output type')
 
         if input_type == 'normal':
-            input_id = row['input']
-            input_snr_id = row['input_snr']
-            input_row = connection.execute(select([INPUT]).where(INPUT.c.input_id == input_id)).first()
+            input_row = connection.execute(select([INPUT]).where(INPUT.c.galaxy_id == row['galaxy_id'])).first()
 
-            input_snr_row = connection.execute(select([INPUT]).where(INPUT.c.input_id == input_snr_id)).first()
-
-            if not input_row or not input_snr_row:
+            if not input_row:
                 continue
 
-            row_inputs = map_inputrow2list(input_row, input_snr_row)
+            row_inputs = map_inputrow2list(input_row, input_filter_types)
 
         elif input_type == 'Jy':
             # For these, the SNR and normal readings are already interleaved
-            input_id = row['input_Jy']
-            input_snr_id = row['input_Jy_snr']
 
-            input_row = connection.execute(select([INPUT_JY]).where(INPUT_JY.c.input_Jy_id == input_id)).first()
-            input_snr_row = connection.execute(select([INPUT_JY]).where(INPUT_JY.c.input_Jy_id == input_snr_id)).first()
+            input_row = connection.execute(select([INPUT_JY]).where(INPUT_JY.c.galaxy_id == row['galaxy_id'])).first()
 
-            if not input_row or not input_snr_row:
+            if not input_row:
                 continue
 
-            row_inputs = map_inputrow2list_Jy(input_row, input_snr_row)
+            row_inputs = map_inputrow2list_Jy(input_row, input_filter_types)
 
-        if not check_valid_row(input_row):
+        if not check_valid_row(row_inputs):
             # This row contains some invalid data (such as -999s or 0s)
             continue
 
@@ -605,7 +719,7 @@ def get_train_test_data(num_test, num_train, run_folder, single_value=None, inpu
         for i in range(0, repeat_redshift):
             row_inputs.insert(0, row['redshift'])
 
-        galaxy_ids.append(row['galaxy_number'])
+        galaxy_ids.append(row['galaxy_id'])
 
         all_in.append(row_inputs)
         all_out.append(row_outputs)

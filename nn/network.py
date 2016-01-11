@@ -22,9 +22,44 @@ import numpy as np
 from common.database import get_train_test_data, db_init
 import pickle
 from keras.utils.visualize_util import to_graph
+from multiprocessing import Process
+from network_pybrain import run_network
 
+output_names =[
+    'ager',
+    'tau_V',
+    'agem',
+    'tlastb',
+    'Mstars',
+    'xi_Wtot',
+    'sfr29',
+    'xi_PAHtot',
+    'f_muSFH',
+    'fb17',
+    'fb16',
+    'T_CISM',
+    'Ldust',
+    'mu_parameter',
+    'xi_Ctot',
+    'f_muIR',
+    'fb18',
+    'fb19',
+    'T_WBC',
+    'SFR_0_1Gyr',
+    'fb29',
+    'sfr17',
+    'sfr16',
+    'sfr19',
+    'sfr18',
+    'tau_VISM',
+    'sSFR_0_1Gyr',
+    'metalicity_Z_Z0',
+    'Mdust',
+    'xi_MIRtot',
+    'tform',
+    'gamma']
 
-tmp_file = '/tmp/nn_last_tmp_input1.tmp'
+tmp_file = 'nn_last_tmp_input1.tmp'
 
 
 def standardise_2Darray(array):
@@ -60,7 +95,7 @@ def standardise_2Darray(array):
     return means, ranges, array
 
 
-def normalise_2Darray(array, ignore=0):
+def normalise_2Darray(array, ignore=0, type=0):
     x_len = len(array)
     y_len = len(array[0])
 
@@ -83,7 +118,10 @@ def normalise_2Darray(array, ignore=0):
                 minimum = array[x][y]
 
         for x in range(0, x_len):
-            array[x][y] = (array[x][y] - minimum) / float(maximum - minimum)
+            if type == 1: # -1 to 1
+                array[x][y] = 2*((array[x][y] - minimum) / float(maximum - minimum)) - 1
+            else: # 0 to 1
+                array[x][y] = ((array[x][y] - minimum) / float(maximum - minimum))
 
         minimums[y] = minimum
         maximums[y] = maximum
@@ -150,9 +188,10 @@ input_type = 'normal'
 repeat_redshift = 1
 
 
-def run_network(hidden_connections, hidden_layers, loss, single_value=None):
 
-    nn_config_dict = {'test':test_data, 'train':train_data, 'run':run_id, 'input_type': input_type, 'output_type':output_type, 'repeat_redshift':repeat_redshift, 'value':single_value}
+def run_network_keras(hidden_connections, hidden_layers, loss, single_value=None, normalise=False, input_filter_types=None, use_graph=False, optimiser=0):
+
+    nn_config_dict = {'test':test_data, 'train':train_data, 'run':run_id, 'input_type': input_type, 'output_type':output_type, 'repeat_redshift':repeat_redshift, 'value':single_value, 'input_filter_types':input_filter_types}
 
     if check_temp(tmp_file, nn_config_dict):
         print 'Correct temp file exists at {0}, loading from temp'.format(tmp_file)
@@ -160,83 +199,90 @@ def run_network(hidden_connections, hidden_layers, loss, single_value=None):
         print 'Done.'
     else:
         print 'No temp file, reading from database.'
-        test_in, test_out, train_in, train_out, galaxy_ids = get_train_test_data(test_data, train_data, run_id, input_type=input_type, output_type=output_type, repeat_redshift=repeat_redshift, single_value=single_value)
+        test_in, test_out, train_in, train_out, galaxy_ids = get_train_test_data(test_data, train_data, input_type=input_type,
+                                                                                 output_type=output_type,
+                                                                                 repeat_redshift=repeat_redshift,
+                                                                                 single_value=single_value,
+                                                                                 input_filter_types=input_filter_types)
 
         print 'Done. Writing temp file for next time.'
         write_file(tmp_file, nn_config_dict, test_in, test_out, train_in, train_out, galaxy_ids)
         print 'Done. Temp file written to {0}'.format(tmp_file)
 
-    """
-    redshift_train = []
-    redshift_test = []
-    for i in range(0, len(train_in)):
-        redshift_train.append([train_in[i][0]])
+    if normalise:
+        print 'Normalising...'
+        train_in_min, train_in_max, train_in = normalise_2Darray(train_in)
+        train_out_min, train_out_max, train_out = normalise_2Darray(train_out)
 
-    for i in range(0, len(test_in)):
-        redshift_test.append([test_in[i][0]])
-    """
-    #redshift_test = np.array(redshift_test)
-    #redshift_train = np.array(redshift_train)
+        test_in_min, test_in_max, test_in = normalise_2Darray(test_in)
+        test_out_min, test_out_max, test_out = normalise_2Darray(test_out)
 
-    print 'Normalising...'
-    train_in_min, train_in_max, train_in = normalise_2Darray(train_in)
-    train_out_min, train_out_max, train_out = normalise_2Darray(train_out)
-
-
-    test_in_min, test_in_max, test_in = normalise_2Darray(test_in)
-    test_out_min, test_out_max, test_out = normalise_2Darray(test_out)
-
-    #redshift_train_min, redshift_train_max, redshift_train = normalise_2Darray(redshift_train)
-    #redshift_test_min, redshift_test_max, redshift_test = normalise_2Darray(redshift_test)
-
-    print 'Normalising done.'
+        print 'Normalising done.'
 
     print np.shape(train_in)
     print np.shape(train_out)
     print np.shape(test_in)
     print np.shape(test_out)
-    #print np.shape(redshift_train)
 
     print 'Compiling neural network model'
 
-    """
-    graph = Graph()
+    if optimiser == 0:
+        optimiser = SGD(lr=0.02, momentum=0.3, decay=0.00001, nesterov=True)
+    elif optimiser == 1:
+        optimiser = Adagrad(lr=0.01, epsilon=1e-06)
+    elif optimiser == 2:
+        optimiser = Adadelta(lr=1.0, rho=0.95, epsilon=1e-06)
+    elif optimiser == 3:
+        optimiser = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
 
-    graph.add_input(name='input', input_shape=(41,))
-    graph.add_input(name='redshift', input_shape=(1,))
-    graph.add_node(Dense(60, input_dim=41, activation='tanh'), name='input_layer', input='input')
-    graph.add_node(Dense(60, activation='tanh'), name='hidden2', inputs=['input_layer', 'redshift'], merge_mode='concat')
-    graph.add_node(Dense(60, activation='tanh'), name='hidden3', input='hidden2')
-    graph.add_node(Dense(32, activation='tanh'), name='hidden4', input='hidden3')
-    graph.add_output(name='output', input='hidden4')
+    first_activation = 'linear'
+    if normalise:
+        first_activation = 'tanh'
 
-    to_graph(graph).write_svg('graph1.svg')
-    optimiser = SGD(lr=0.01, momentum=0.0, decay=0, nesterov=True)
-    graph.compile(loss={'output':'rmse'}, optimizer=optimiser)
-    """
+    if input_filter_types is None:
+        input_dim = 42
+    else:
+        input_dim = 0
 
-    model = Sequential()
+        if 'optical' in input_filter_types:
+            input_dim += 10
 
-    optimiser = SGD(lr=0.01, momentum=0.0, decay=0, nesterov=True)
-    #optimiser = Adagrad(lr=0.01, epsilon=1e-06)
-    #optimiser = Adadelta(lr=1.0, rho=0.95, epsilon=1e-06)
-    #optimiser = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
+        if 'ir' in input_filter_types:
+            input_dim += 9
 
-    """
-    model.add(Dense(output_dim=60, input_dim=40+repeat_redshift, init='he_normal', activation='tanh'))
-    model.add(Dense(output_dim=60, input_dim=60, init='he_normal', activation='tanh'))
-    model.add(Dense(output_dim=60, input_dim=60, init='he_normal', activation='tanh'))
-    model.add(Dense(output_dim=60, input_dim=60, init='he_normal', activation='relu'))
-    model.add(Dense(output_dim=32, input_dim=60, init='he_normal', activation='linear'))
+        if 'uv' in input_filter_types:
+            input_dim += 2
 
-    """
+        input_dim *= 2
 
-    model.add(Dense(output_dim=hidden_connections, input_dim=40+repeat_redshift, init='glorot_uniform', activation='linear'))
-    for i in range(0, hidden_layers):
-        model.add(Dense(output_dim=hidden_connections, input_dim=hidden_connections, init='glorot_uniform', activation='tanh'))
-    model.add(Dense(output_dim=32, input_dim=hidden_connections, init='glorot_uniform', activation='linear'))
-    model.compile(loss=loss, optimizer=optimiser)
+    if single_value is not None:
+        output_dim = 1
+    else:
+        output_dim = 15
+
+    if not use_graph:
+        model = Sequential()
+        model.add(Dense(output_dim=hidden_connections, input_dim=input_dim+repeat_redshift, init='glorot_uniform', activation=first_activation))
+        for i in range(0, hidden_layers):
+            model.add(Dense(output_dim=hidden_connections, input_dim=hidden_connections, init='glorot_uniform', activation='tanh'))
+        model.add(Dense(output_dim=output_dim, input_dim=hidden_connections, init='glorot_uniform', activation='linear'))
+        model.compile(loss=loss, optimizer=optimiser)
     #"""
+
+    if use_graph:
+        graph = Graph()
+
+        graph.add_input(name='input', input_shape=(input_dim+repeat_redshift,))
+        graph.add_input(name='redshift', input_shape=(1,))
+        graph.add_node(Dense(60, input_dim=input_dim+repeat_redshift, activation='tanh'), name='input_layer', input='input')
+        graph.add_node(Dense(60, activation='tanh'), name='hidden2', inputs=['input_layer', 'redshift'], merge_mode='concat')
+        graph.add_node(Dense(60, activation='tanh'), name='hidden3', input='hidden2')
+        graph.add_node(Dense(output_dim, activation='linear'), name='hidden4', input='hidden3')
+        graph.add_output(name='output', input='hidden4')
+
+        to_graph(graph).write_svg('graph1.svg')
+        optimiser = SGD(lr=0.01, momentum=0.0, decay=0, nesterov=True)
+        graph.compile(loss={'output':'mse'}, optimizer=optimiser)
 
     print "Compiled."
 
@@ -250,22 +296,23 @@ def run_network(hidden_connections, hidden_layers, loss, single_value=None):
     history_seen = []
     while not trained:
 
-        #history = graph.fit({'input':train_in, 'redshift':redshift_train, 'output':train_out}, batch_size=500, nb_epoch=50, validation_split=0.1, verbose=True, callbacks=[history])
-        history = model.fit(train_in, train_out, batch_size=500, nb_epoch=1, validation_split=0.1, show_accuracy=True, verbose=False, callbacks=[history])
-        current_loss = history.totals['loss']
+        if use_graph:
+            pass
+            #history = graph.fit({'input':train_in, 'redshift':redshift_train, 'output':train_out}, batch_size=500, nb_epoch=50, validation_split=0.1, verbose=True, callbacks=[history])
+        else:
+            history = model.fit(train_in, train_out, batch_size=1000, nb_epoch=100, validation_split=0.1, show_accuracy=True, verbose=True, callbacks=[history])
 
-        total_epoch += 1
-        print history.totals
+        total_epoch += 100
         history_seen.append(history.seen)
         history_history.append(history.history)
         history_tracking.append(history.totals)
-        if history.totals['loss'] < 0.001 or total_epoch > 500:
+        if history.totals['loss'] < 0.001 or total_epoch > 999:
             trained = True
 
-    with open('hidden_{0}_connections_{1}_loss_{2}_epoch_{3}_value:{4}.txt'.format(hidden_layers, hidden_connections, loss, total_epoch, single_value), 'w') as f:
+    with open('filters_{0}_loss_{1}_parameter_{2}_optimiser_{3}.txt'.format(input_filter_types[0], loss, output_names[single_value], optimiser), 'w') as f:
 
         for k, v in nn_config_dict.iteritems():
-            f.write('{0}        {1}\n'.format(k, v))
+            f.write('{0}            {1}\n'.format(k, v))
 
         i = 0
         f.write('\n\nHistory\n')
@@ -289,25 +336,49 @@ def run_network(hidden_connections, hidden_layers, loss, single_value=None):
             test_to_use = rand.randint(0, test_data - 1)
             ans = model.predict(np.array([test_in[test_to_use]]))
             #ans = graph.predict({'input':np.array([test_in[test_to_use]]), 'redshift':np.array([redshift_test[test_to_use]])})
-            #f.write('Test {0} for epoch {1}\n'.format(i, total_epoch))
             f.write('\nGalaxy number = {0}\n'.format(galaxy_ids[test_to_use]))
+            f.write('Inputs: {0}\n'.format(test_in[test_to_use]))
             f.write('Output   Correct\n')
             for a in range(0, len(test_out[test_to_use])):
-                f.write('{0}  =   {1}\n'.format(denormalise_value(ans[0][a], train_out_min[a], train_out_max[a]), denormalise_value(test_out[test_to_use][a], test_out_min[a], test_out_max[a])))
+                if normalise:
+                    #f.write('{0}  =   {1}\n'.format(ans[0][a], test_out[test_to_use][a]))
+                    f.write('{0}  =   {1}\n'.format(denormalise_value(ans[0][a], train_out_min[a], train_out_max[a]), denormalise_value(test_out[test_to_use][a], test_out_min[a], test_out_max[a])))
+                else:
+                    f.write('{0}  =   {1}\n'.format(ans[0][a], test_out[test_to_use][a]))
             f.write('\n\n')
 
+
+def do_pybrain():
+    filters = ['ir', 'uv', 'optical']
+    parameters = range(0, 15)
+
+    for filter in filters:
+        for parameter in parameters:
+            run_network(parameter, filter)
+
 if __name__ == '__main__':
-    """hidden_connections = [25, 50, 75, 100]
-    hidden_layers = [1, 2, 3, 4]
-    values = range(0, 32)
-    loss = 'rmse'
 
-    #for value in values:
-    for connections in hidden_connections:
-        for layer in hidden_layers:
-            run_network(connections, layer, loss)"""
+    normalise = [True, False]
+    filters = ['ir', 'uv', 'optical']
+    loss = ['mae', 'mape', 'mse', 'rmse']
+    parameters = range(0, 15)
+    optimisers = range(0, 4)
 
-    run_network(50, 3, 'mse')
+    # Try a really big run.
+    big = Process(target=run_network_keras, args=(1000, 50, 'mse', None, True, ['ir', 'uv', 'optical']))
+
+    pybrain = Process(target=do_pybrain)
+
+    pybrain.start()
+    big.start()
+
+    for filter in filters:
+        for parameter in parameters:
+            for optimiser in optimisers:
+                run_network_keras(60, 4, 'mse', parameter, True, filter, optimiser)
+
+    pybrain.join()
+    big.join()
 
 print "Done"
 

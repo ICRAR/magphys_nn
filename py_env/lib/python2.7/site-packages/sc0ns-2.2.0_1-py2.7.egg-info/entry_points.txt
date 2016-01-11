@@ -1,0 +1,3 @@
+[console_scripts]
+scons = SCons.Script:main
+
