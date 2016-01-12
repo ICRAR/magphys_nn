@@ -19,8 +19,11 @@ import pickle
 from pybrain.structure import *
 from pybrain.supervised import *
 from pybrain.datasets import *
-from pybrain.tools.neuralnets import NNregression
-import thread
+from common.logger import config_logger, add_file_handler_to_root
+
+
+LOG = config_logger(__name__)
+add_file_handler_to_root('nn_run.log')
 
 tmp_file = 'nn_last_tmp_input_pybrain.tmp'
 
@@ -148,30 +151,30 @@ input_type = 'normal'
 repeat_redshift = 1
 
 
-def run_network(single_value=None, input_filter_types=None):
+def run_network(connections, layers, single_value=None, input_filter_types=None):
 
     nn_config_dict = {'test':test_data, 'train':train_data, 'run':run_id, 'input_type': input_type, 'output_type':output_type, 'repeat_redshift':repeat_redshift, 'value':single_value, 'input_filter_types':input_filter_types}
 
     if check_temp(tmp_file, nn_config_dict):
-        print 'Correct temp file exists at {0}, loading from temp'.format(tmp_file)
+        LOG.info('Correct temp file exists at {0}, loading from temp'.format(tmp_file))
         test_in, test_out, train_in, train_out, galaxy_ids = load_from_file(tmp_file)
-        print 'Done.'
+        LOG.info('Done.')
     else:
-        print 'No temp file, reading from database.'
+        LOG.info('No temp file, reading from database.')
         test_in, test_out, train_in, train_out, galaxy_ids = get_train_test_data(test_data, train_data, input_type=input_type, output_type=output_type, repeat_redshift=repeat_redshift, single_value=single_value, input_filter_types=input_filter_types)
 
-        print 'Done. Writing temp file for next time.'
+        LOG.info('Done. Writing temp file for next time.')
         write_file(tmp_file, nn_config_dict, test_in, test_out, train_in, train_out, galaxy_ids)
-        print 'Done. Temp file written to {0}'.format(tmp_file)
+        LOG.info('Done. Temp file written to {0}'.format(tmp_file))
 
-    print '\nNormalising...'
+    LOG.info('\nNormalising...')
     train_in_min, train_in_max, train_in = normalise_2Darray(train_in)
     #train_out_min, train_out_max, train_out = normalise_2Darray(train_out)
 
     test_in_min, test_in_max, test_in = normalise_2Darray(test_in)
     #test_out_min, test_out_max, test_out = normalise_2Darray(test_out)
 
-    print 'Normalising done.'
+    LOG.info('Normalising done.')
 
     print np.shape(train_in)
     print np.shape(train_out)
@@ -196,32 +199,32 @@ def run_network(single_value=None, input_filter_types=None):
     for i in range(0, len(train_in)):
         data_set.addSample(train_in[i], train_out[i])
 
-    print 'Compiling neural network model'
+    LOG.info('Compiling neural network model')
 
     network = FeedForwardNetwork()
 
     input_layer = TanhLayer(input_dim+repeat_redshift,'Input')
-    hidden1 = TanhLayer(50,'hidden1')
-    hidden2 = TanhLayer(50,'hidden2')
-    hidden3 = TanhLayer(50,'hidden3')
-    output_layer = LinearLayer(1, 'output')
-
     network.addInputModule(input_layer)
-    network.addModule(hidden1)
-    network.addModule(hidden2)
-    network.addModule(hidden3)
-    network.addOutputModule(output_layer)
 
-    network.addConnection(FullConnection(input_layer, hidden1))
-    network.addConnection(FullConnection(hidden1, hidden2))
-    network.addConnection(FullConnection(hidden2, hidden3))
-    network.addConnection(FullConnection(hidden3, output_layer))
+    prev_layer = TanhLayer(connections, 'hidden0')
+    network.addModule(prev_layer)
+    network.addConnection(FullConnection(input_layer, prev_layer))
+
+    for i in range(0, layers):
+        new_layer = TanhLayer(connections, 'hidden{0}'.format(i))
+        network.addModule(new_layer)
+        network.addConnection(FullConnection(new_layer, prev_layer))
+        prev_layer = new_layer
+
+    output_layer = LinearLayer(15, 'output')
+    network.addOutputModule(output_layer)
+    network.addConnection(FullConnection(new_layer, output_layer))
 
     network.sortModules()
 
     trainer = BackpropTrainer(network, data_set, verbose=True)
 
-    print "Compiled."
+    LOG.info("Compiled.")
 
     epochs = 0
     do_test = 10
@@ -231,7 +234,7 @@ def run_network(single_value=None, input_filter_types=None):
         epochs += 1
         do_test -= 1
 
-        print 'Error rate at epoch {0}: {1}'.format(epochs, error)
+        LOG.info('Error rate at epoch {0}: {1}'.format(epochs, error))
 
         if error < 0.001 or epochs == 500:
             trained = True
@@ -264,7 +267,7 @@ if __name__ == '__main__':
     for parameter in parameters:
         run_network(input_filter_types=['ir', 'uv', 'optical'], single_value=parameter)
 
-print "Done"
+LOG.info("Done")
 
 
 

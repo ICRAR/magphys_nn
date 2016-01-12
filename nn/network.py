@@ -22,9 +22,10 @@ import numpy as np
 from common.database import get_train_test_data, db_init
 import pickle
 from keras.utils.visualize_util import to_graph
-from multiprocessing import Process
-from network_pybrain import run_network
-from time import sleep
+from common.logger import config_logger, add_file_handler_to_root
+
+LOG = config_logger(__name__)
+add_file_handler_to_root('nn_run.log')
 
 output_names =[
     'ager',
@@ -63,37 +64,31 @@ output_names =[
 tmp_file = 'nn_last_tmp_input1.tmp'
 
 
-def standardise_2Darray(array):
-
+def scale_array_to(array, lower, upper):
     x_len = len(array)
     y_len = len(array[0])
 
-    means = [0] * len(array[0])
-    ranges = [0] * len(array[0])
+    minimums = [0] * len(array[0])
+    maximums = [0] * len(array[0])
 
     for y in range(0, y_len):
-        mean = 0
-        largest = array[0][y]
-        smallest = array[0][y]
-        for x in range(0, x_len):
-            mean += array[x][y]
-
-            if array[x][y] > largest:
-                largest = array[x][y]
-            elif array[x][y] < smallest:
-                smallest = array[x][y]
-
-        mean /= float(x_len)
-
-        ranged = largest - smallest
+        minimum = array[y][0]
+        maximum = array[y][0]
 
         for x in range(0, x_len):
-            array[x][y] = (array[x][y] - mean) / float(ranged)
 
-        means[y] = mean
-        ranges[y] = ranged
+            if array[x][y] > maximum:
+                maximum = array[x][y]
+            elif array[x][y] < minimum:
+                minimum = array[x][y]
 
-    return means, ranges, array
+        for x in range(0, x_len):
+            array[x][y] = ((array[x][y] - minimum) / float(maximum - minimum)) * (upper - lower) + lower
+
+        minimums[y] = minimum
+        maximums[y] = maximum
+
+    return minimums, maximums, array
 
 
 def normalise_2Darray(array, ignore=0, type=0):
@@ -189,43 +184,50 @@ input_type = 'normal'
 repeat_redshift = 1
 
 
-
 def run_network_keras(hidden_connections, hidden_layers, loss, single_value=None, normalise=False, input_filter_types=None, use_graph=False, optimiser=0):
 
     nn_config_dict = {'test':test_data, 'train':train_data, 'run':run_id, 'input_type': input_type, 'output_type':output_type, 'repeat_redshift':repeat_redshift, 'value':single_value, 'input_filter_types':input_filter_types}
 
     if check_temp(tmp_file, nn_config_dict):
-        print 'Correct temp file exists at {0}, loading from temp'.format(tmp_file)
+        LOG.info('Correct temp file exists at {0}, loading from temp'.format(tmp_file))
         test_in, test_out, train_in, train_out, galaxy_ids = load_from_file(tmp_file)
-        print 'Done.'
+        LOG.info('Done.')
     else:
-        print 'No temp file, reading from database.'
+        LOG.info('No temp file, reading from database.')
         test_in, test_out, train_in, train_out, galaxy_ids = get_train_test_data(test_data, train_data, input_type=input_type,
                                                                                  output_type=output_type,
                                                                                  repeat_redshift=repeat_redshift,
                                                                                  single_value=single_value,
                                                                                  input_filter_types=input_filter_types)
 
-        print 'Done. Writing temp file for next time.'
+        LOG.info('Done. Writing temp file for next time.')
         write_file(tmp_file, nn_config_dict, test_in, test_out, train_in, train_out, galaxy_ids)
-        print 'Done. Temp file written to {0}'.format(tmp_file)
+        LOG.info('Done. Temp file written to {0}'.format(tmp_file))
 
     if normalise:
-        print 'Normalising...'
+        LOG.info('Normalising...')
+
         train_in_min, train_in_max, train_in = normalise_2Darray(train_in)
         train_out_min, train_out_max, train_out = normalise_2Darray(train_out)
 
         test_in_min, test_in_max, test_in = normalise_2Darray(test_in)
         test_out_min, test_out_max, test_out = normalise_2Darray(test_out)
+        """
+        train_in_min, train_in_max, train_in = normalise_2Darray(train_in)
+        train_out_min, train_out_max, train_out = normalise_2Darray(train_out)
 
-        print 'Normalising done.'
+        test_in_min, test_in_max, test_in = normalise_2Darray(test_in)
+        test_out_min, test_out_max, test_out = normalise_2Darray(test_out)
+        """
+
+        LOG.info('Normalising done.')
 
     print np.shape(train_in)
     print np.shape(train_out)
     print np.shape(test_in)
     print np.shape(test_out)
 
-    print 'Compiling neural network model'
+    LOG.info('Compiling neural network model')
 
     if optimiser == 0:
         optimiser = SGD(lr=0.02, momentum=0.3, decay=0.00001, nesterov=True)
@@ -284,7 +286,7 @@ def run_network_keras(hidden_connections, hidden_layers, loss, single_value=None
         model.add(Dense(output_dim=output_dim, input_dim=hidden_connections, init='glorot_uniform', activation='linear'))
         model.compile(loss=loss, optimizer=optimiser)
 
-    print "Compiled."
+    LOG.info("Compiled.")
 
     # Train the model each generation and show predictions against the validation dataset
     history = History()
@@ -296,12 +298,14 @@ def run_network_keras(hidden_connections, hidden_layers, loss, single_value=None
     history_seen = []
     while not trained:
 
+        LOG.info('epoch {0}'.format(total_epoch))
+
         if use_graph:
             pass
             #history = graph.fit({'input':train_in, 'redshift':redshift_train, 'output':train_out}, batch_size=500, nb_epoch=50, validation_split=0.1, verbose=True, callbacks=[history])
         else:
             history = model.fit(train_in, train_out, batch_size=1000, nb_epoch=100, validation_split=0.1, show_accuracy=True, verbose=True, callbacks=[history])
-
+        LOG.info('{0}'.format(history.history))
         total_epoch += 100
         history_seen.append(history.seen)
         history_history.append(history.history)
@@ -361,7 +365,7 @@ if __name__ == '__main__':
                 run_network_keras(60, 4, 'mse', parameter, True, filter, optimiser)
 
 
-print "Done"
+LOG.info("Done")
 
 
 
