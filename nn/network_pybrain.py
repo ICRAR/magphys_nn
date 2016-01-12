@@ -194,7 +194,7 @@ def run_network(connections, layers, single_value=None, input_filter_types=None)
 
     input_dim *= 2
 
-    data_set = SupervisedDataSet(input_dim+repeat_redshift, 1)
+    data_set = SupervisedDataSet(input_dim+repeat_redshift, 15)
 
     for i in range(0, len(train_in)):
         data_set.addSample(train_in[i], train_out[i])
