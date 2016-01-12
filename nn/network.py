@@ -24,6 +24,7 @@ import pickle
 from keras.utils.visualize_util import to_graph
 from multiprocessing import Process
 from network_pybrain import run_network
+from time import sleep
 
 output_names =[
     'ager',
@@ -260,14 +261,6 @@ def run_network_keras(hidden_connections, hidden_layers, loss, single_value=None
     else:
         output_dim = 15
 
-    if not use_graph:
-        model = Sequential()
-        model.add(Dense(output_dim=hidden_connections, input_dim=input_dim+repeat_redshift, init='glorot_uniform', activation=first_activation))
-        for i in range(0, hidden_layers):
-            model.add(Dense(output_dim=hidden_connections, input_dim=hidden_connections, init='glorot_uniform', activation='tanh'))
-        model.add(Dense(output_dim=output_dim, input_dim=hidden_connections, init='glorot_uniform', activation='linear'))
-        model.compile(loss=loss, optimizer=optimiser)
-    #"""
 
     if use_graph:
         graph = Graph()
@@ -281,8 +274,15 @@ def run_network_keras(hidden_connections, hidden_layers, loss, single_value=None
         graph.add_output(name='output', input='hidden4')
 
         to_graph(graph).write_svg('graph1.svg')
-        optimiser = SGD(lr=0.01, momentum=0.0, decay=0, nesterov=True)
         graph.compile(loss={'output':'mse'}, optimizer=optimiser)
+
+    else:
+        model = Sequential()
+        model.add(Dense(output_dim=hidden_connections, input_dim=input_dim+repeat_redshift, init='glorot_uniform', activation=first_activation))
+        for i in range(0, hidden_layers):
+            model.add(Dense(output_dim=hidden_connections, input_dim=hidden_connections, init='glorot_uniform', activation='tanh'))
+        model.add(Dense(output_dim=output_dim, input_dim=hidden_connections, init='glorot_uniform', activation='linear'))
+        model.compile(loss=loss, optimizer=optimiser)
 
     print "Compiled."
 
@@ -347,15 +347,6 @@ def run_network_keras(hidden_connections, hidden_layers, loss, single_value=None
                     f.write('{0}  =   {1}\n'.format(ans[0][a], test_out[test_to_use][a]))
             f.write('\n\n')
 
-
-def do_pybrain():
-    filters = ['ir', 'uv', 'optical']
-    parameters = range(0, 15)
-
-    for filter in filters:
-        for parameter in parameters:
-            run_network(parameter, filter)
-
 if __name__ == '__main__':
 
     normalise = [True, False]
@@ -364,21 +355,11 @@ if __name__ == '__main__':
     parameters = range(0, 15)
     optimisers = range(0, 4)
 
-    # Try a really big run.
-    big = Process(target=run_network_keras, args=(1000, 50, 'mse', None, True, ['ir', 'uv', 'optical']))
-
-    pybrain = Process(target=do_pybrain)
-
-    pybrain.start()
-    big.start()
-
     for filter in filters:
         for parameter in parameters:
             for optimiser in optimisers:
                 run_network_keras(60, 4, 'mse', parameter, True, filter, optimiser)
 
-    pybrain.join()
-    big.join()
 
 print "Done"
 
