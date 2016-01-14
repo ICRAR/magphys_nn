@@ -17,7 +17,7 @@ SHUFFLE = False
 
 # Set to True to allow NaN values from input files to be loaded in to the database (as nulls).
 # Set to False to ignore files with NaN values.
-ALLOW_NAN = False
+ALLOW_NAN = True
 
 # The login string for the database. Must be a valid SQL Alchemy database string!
 #DB_LOGIN = 'sqlite:////home/ict310/Studentship1/git/magphys_nn/preprocess/db_2015_01.db'

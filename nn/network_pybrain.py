@@ -161,7 +161,10 @@ def run_network(connections, layers, single_value=None, input_filter_types=None)
         LOG.info('Done.')
     else:
         LOG.info('No temp file, reading from database.')
-        test_in, test_out, train_in, train_out, galaxy_ids = get_train_test_data(test_data, train_data, input_type=input_type, output_type=output_type, repeat_redshift=repeat_redshift, single_value=single_value, input_filter_types=input_filter_types)
+        test_in, test_out, train_in, train_out, galaxy_ids = get_train_test_data(test_data, train_data, input_type=input_type,
+                                                                                 output_type=output_type,
+                                                                                 repeat_redshift=repeat_redshift,
+                                                                                 input_filter_types=input_filter_types)
 
         LOG.info('Done. Writing temp file for next time.')
         write_file(tmp_file, nn_config_dict, test_in, test_out, train_in, train_out, galaxy_ids)
