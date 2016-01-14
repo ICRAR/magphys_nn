@@ -396,6 +396,7 @@ def get_train_test_data(num_test, num_train,
 
 if __name__ == '__main__':
 
+    db_init('sqlite:///Database_run06.db')
     LOG.info('Performing database clense.')
     transaction = connection.begin()
     for table in reversed(MAGPHYS_NN_METADATA.sorted_tables):
