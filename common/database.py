@@ -39,19 +39,22 @@ def add_process_data_to_db(galaxy, run_id, sh_filename):
 
     transaction = connection.begin()
 
-    try:
-        connection.execute(NN_TRAIN.update().where(NN_TRAIN.c.galaxy_id == galaxy['galaxy_number'])
-                                            .values(run_id=run_id,
-                                                    redshift=galaxy['redshift'],
-                                                    galaxy_id=galaxy['galaxy_number'],
-                                                    run_filename=sh_filename
-                                                    ))
-    except:
+    exists = connection.execute(select([func.count(NN_TRAIN)])
+                                .where(NN_TRAIN.c.galaxy_id == galaxy['galaxy_number'])).first()[0]
+
+    if exists == 0:
         connection.execute(NN_TRAIN.insert().values(run_id=run_id,
                                                     redshift=galaxy['redshift'],
                                                     galaxy_id=galaxy['galaxy_number'],
                                                     run_filename=sh_filename
                                                     ))
+    else:
+        connection.execute(NN_TRAIN.update().where(NN_TRAIN.c.galaxy_id == galaxy['galaxy_number'])
+                           .values(run_id=run_id,
+                                   redshift=galaxy['redshift'],
+                                   galaxy_id=galaxy['galaxy_number'],
+                                   run_filename=sh_filename
+                                   ))
 
     connection.execute(INPUT_JY.insert().values(galaxy_id=galaxy['galaxy_number'],
                        fuv=galaxy['fuv'],
@@ -107,14 +110,16 @@ def add_to_db(input, input_snr, output, best_fit_output, best_fit_model, best_fi
     head, tail = os.path.split(details['filename'])
     gal_id = int(tail.split('.fit')[0])
 
-    # If we read the .sh file first, then we can update.
-    try:
-        connection.execute(NN_TRAIN.update().where(NN_TRAIN.c.galaxy_id == gal_id)
-                           .values(fit_filename=details['filename'])
-                           )
-    except: # If not, then we need to insert.
+    exists = connection.execute(select([func.count(NN_TRAIN)])
+                                    .where(NN_TRAIN.c.galaxy_id == gal_id)).first()[0]
+
+    if exists == 0:
         connection.execute(NN_TRAIN.insert().values(fit_filename=details['filename'],
                                                     galaxy_id=gal_id)
+                           )
+    else:
+        connection.execute(NN_TRAIN.update().where(NN_TRAIN.c.galaxy_id == gal_id)
+                           .values(fit_filename=details['filename'])
                            )
 
     connection.execute(INPUT.insert().values(galaxy_id=gal_id,
@@ -289,7 +294,7 @@ def get_train_test_data(num_test, num_train,
     print 'Getting from DB'
     total_to_get = num_train+num_test
     count = connection.execute(select([func.count(NN_TRAIN)]).where(NN_TRAIN.c.fit_filename != None)
-                               .order_by(ffunc.random()).limit(total_to_get + total_to_get*0.05)).first()[0]
+                               .limit(total_to_get + total_to_get*0.05)).first()[0]
 
     print '{0} entries available'.format(count)
     if count < total_to_get:

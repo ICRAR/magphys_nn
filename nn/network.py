@@ -117,9 +117,13 @@ config = {'train_data': 200000,
           'run_id': '06',
           'output_type': 'median',
           'input_type': 'normal',
-          'include_sigma': True,
+          'include_sigma': False,
           'repeat_redshift':  1
           }
+
+learning_params = {'momentum': 0.3,
+                   'learning_rate': 0.02,
+                   'decay': 0.00001}
 
 
 def run_network_keras(hidden_connections, hidden_layers, loss,
@@ -155,7 +159,7 @@ def run_network_keras(hidden_connections, hidden_layers, loss,
     LOG.info('Compiling neural network model')
 
     if optimiser == 0:
-        optimiser = SGD(lr=0.02, momentum=0.3, decay=0.00001, nesterov=True)
+        optimiser = SGD(lr=learning_params['learning_rate'], momentum=learning_params['momentum'], decay=learning_params['decay'], nesterov=True)
     elif optimiser == 1:
         optimiser = Adagrad(lr=0.01, epsilon=1e-06)
     elif optimiser == 2:
@@ -182,10 +186,17 @@ def run_network_keras(hidden_connections, hidden_layers, loss,
 
             input_dim *= 2
 
+    if unknown_input_handler is not None:
+        if unknown_input_handler.__name__ == 'replace_zeros_validity' or unknown_input_handler.__name__ == 'replace_mean_validity':
+            input_dim *= 2
+
+    if config['include_sigma'] is False:
+        input_dim /= 2
+
     if single_output is not None and single_output > 0:
         output_dim = 1
     else:
-        output_dim = 32
+        output_dim = 15
 
     if use_graph:
         graph = Graph()
@@ -203,10 +214,10 @@ def run_network_keras(hidden_connections, hidden_layers, loss,
 
     else:
         model = Sequential()
-        model.add(Dense(output_dim=hidden_connections, input_dim=input_dim+repeat_redshift, init='glorot_uniform', activation='tanh'))
+        model.add(Dense(output_dim=hidden_connections, input_dim=input_dim+repeat_redshift, init='uniform', activation='tanh'))
         for i in range(0, hidden_layers):
-            model.add(Dense(output_dim=hidden_connections, input_dim=hidden_connections, init='glorot_uniform', activation='tanh'))
-        model.add(Dense(output_dim=output_dim, input_dim=hidden_connections, init='glorot_uniform', activation='linear'))
+            model.add(Dense(output_dim=hidden_connections, input_dim=hidden_connections, init='uniform', activation='tanh'))
+        model.add(Dense(output_dim=output_dim, input_dim=hidden_connections, init='uniform', activation='tanh'))
         model.compile(loss=loss, optimizer=optimiser)
 
     LOG.info("Compiled.")
@@ -233,34 +244,29 @@ def run_network_keras(hidden_connections, hidden_layers, loss,
         history_seen.append(history.seen)
         history_history.append(history.history)
         history_tracking.append(history.totals)
-        if history.totals['loss'] < 0.001 or total_epoch > 299:
+        if history.totals['loss'] < 0.001 or total_epoch > 199:
             trained = True
 
-    output_file_name = """nodes_{0}_
-                       layers_{1}_
-                       filters_{2}_
-                       loss_{3}_
-                       parameter_{4}_
-                       optimiser_{5}_
-                       normalise_{6}_
-                       sigma_{7}_
-                       input_type_{8}
-                       input_handler_function_{9}
-                       .txt""".format(hidden_connections,
+    if unknown_input_handler is not None:
+        func_name = unknown_input_handler.__name__
+    else:
+        func_name = 'None'
+    output_file_name = "node_{0}_layer_{1}_filter_{2}_loss_{3}_param_{4}_sigma_{5}_inpty_{6}_lrparams{7}.txt".format(hidden_connections,
                                       hidden_layers,
                                       input_filter_types,
                                       loss,
                                       'all',
-                                      optimiser,
-                                      (normalise_input, normalise_output),
                                       config['include_sigma'],
                                       config['input_type'],
-                                      unknown_input_handler.__name__ or None
+                                      learning_params
                                       )
 
     with open(output_file_name, 'w') as f:
 
         for k, v in config.iteritems():
+            f.write('{0}            {1}\n'.format(k, v))
+
+        for k, v in learning_params.iteritems():
             f.write('{0}            {1}\n'.format(k, v))
 
         i = 0
@@ -294,7 +300,7 @@ def run_network_keras(hidden_connections, hidden_layers, loss,
             for a in range(0, len(test_out[test_to_use])):
                 if normalise_output:
                     #f.write('{0}  =   {1}\n'.format(ans[0][a], test_out[test_to_use][a]))
-                    f.write('{0}  =   {1}\n'.format(out_normaliser.denormalise_value(ans[a], a), out_normaliser.denormalise_value(test_out[test_to_use][a], a)))
+                    f.write('{0}  =   {1}\n'.format(out_normaliser.denormalise_value(ans[0][a], a), out_normaliser.denormalise_value(test_out[test_to_use][a], a)))
                 else:
                     f.write('{0}  =   {1}\n'.format(ans[0][a], test_out[test_to_use][a]))
             f.write('\n\n')
@@ -304,21 +310,26 @@ if __name__ == '__main__':
     run_network_keras(60, 4, 'mse', single_output=None, single_input=None, normalise_input=None,
                       normalise_output=None, input_filter_types=None, use_graph=False, optimiser=0)
     """
-
-    replacement_types = [replace_mean, replace_zeros, replace_zeros_validity, replace_mean_validity]
-    include_sigma = [True, False]
+    #[replace_zeros_validity, replace_mean_validity]
+    replacement_types = [replace_mean, replace_zeros]
+    include_sigma = [False]
     input_type = ['normal', 'Jy']
 
+    learning_rate = [0.001, 0.005, 0.01, 0.02, 0.03, 0.04, 0.05]
+    momentum = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
+    decay = [0.00001, 0.0001, 0.001]
+
+    """
     for rep_type in replacement_types:
-        for i in range(0, 5):
+        for i in range(0, 2):
             run_network_keras(40+i, 3, 'mse', single_output=None,
                               single_input=None,
                               normalise_input=(-1, 1),
-                              normalise_output=None,
+                              normalise_output=(-1, 1),
                               input_filter_types=None,
                               optimiser=0,
                               unknown_input_handler=rep_type)
-
+    """
 
     for sigma in include_sigma:
         config['include_sigma'] = sigma
@@ -327,12 +338,24 @@ if __name__ == '__main__':
             run_network_keras(40, 3, 'mse', single_output=None,
                               single_input=None,
                               normalise_input=(-1, 1),
-                              normalise_output=None,
+                              normalise_output=(-1, 1),
                               input_filter_types=None,
                               optimiser=0,
                               unknown_input_handler=None)
 
+    for d in decay:
+        for m in momentum:
+            for lr in learning_rate:
+                learning_params['decay'] = d
+                learning_params['momentum'] = m
+                learning_params['learning_rate'] = lr
 
+                run_network_keras(40, 3, 'mse', single_output=None,
+                                  single_input=None,
+                                  normalise_input=(-1, 1),
+                                  normalise_output=(-1, 1),
+                                  input_filter_types=None,
+                                  optimiser=0)
     normalise = [True, False]
     filters = ['ir', 'uv', 'optical']
     loss = ['mae', 'mse', 'rmse', 'msle', 'squared_hinge', 'hinge', 'binary_crossentropy', 'poisson', 'cosine_proximity']

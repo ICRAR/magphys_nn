@@ -54,7 +54,7 @@ class ArrayNormaliser(object):
         return array
 
     def normalise_array(self, array):
-        return self._scale_array_to(array, -1, 1)
+        return self._scale_array_to(array, self.min, self.max)
 
     def denormalise_array(self, array):
         return self._scale_array_to(array, self.dataset_mins, self.dataset_maxs)
@@ -163,8 +163,8 @@ def get_training_data(config, tmp_file, single_output=None, single_input=None,
     print 'Redshift'
     print np.shape(redshifts)
 
-    print 'First 10'
-    for i in range(0, 10):
+    print 'First 5'
+    for i in range(0, 5):
         print all_in[i]
         print all_out[i]
         print galaxy_ids[i]
@@ -188,14 +188,21 @@ def get_training_data(config, tmp_file, single_output=None, single_input=None,
         all_in = all_in_normaliser.normalise_array(all_in)
 
         LOG.info('Normalising done.')
-    else:
-        if normalise_output is not None:
-            LOG.info('Normalising output...')
-            all_out_normaliser = ArrayNormaliser(normalise_output[0], normalise_output[1])
 
-            all_out = all_out_normaliser.normalise_array(all_out)
+    if normalise_output is not None:
+        LOG.info('Normalising output...')
+        all_out_normaliser = ArrayNormaliser(normalise_output[0], normalise_output[1])
 
-            LOG.info('Normalising done.')
+        all_out = all_out_normaliser.normalise_array(all_out)
+
+        LOG.info('Normalising done.')
+
+    print 'First 5 normalised'
+    for i in range(0, 5):
+        print all_in[i]
+        print all_out[i]
+        print galaxy_ids[i]
+        print redshifts[i]
 
     test_in, train_in = split_data(all_in, config['test_data'])
     redshift_test, redshift_train = split_data(redshifts, config['test_data'])
@@ -211,6 +218,13 @@ def get_training_data(config, tmp_file, single_output=None, single_input=None,
     print 'Testing in, out'
     print np.shape(test_in)
     print np.shape(test_out)
+
+    print 'First test 5'
+    for i in range(0, 5):
+        print test_in[i]
+        print test_out[i]
+        print galaxy_ids_test[i]
+        print redshift_test[i]
 
     # print 'Denormalised\n: '
     #for i in range(0, 43):

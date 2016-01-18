@@ -373,7 +373,7 @@ def map_inputrow2list(row, input_filter_types):
 
 
 def map_outputrow2list(row):
-    out_list = [None] * 32
+    out_list = [None] * 15
 
     """
     out_list[0] = row['tau_V']
@@ -391,9 +391,9 @@ def map_outputrow2list(row):
     out_list[12] = row['sSFR_0_1Gyr']
     out_list[13] = row['Mdust']
     out_list[14] = row['xi_MIRtot']
-    """
 
     # Median output values
+    """
     out_list[0] = row['ager']
     out_list[1] = row['tau_V']
     out_list[2] = row['agem']
@@ -426,7 +426,8 @@ def map_outputrow2list(row):
     out_list[29] = row['xi_MIRtot']
     out_list[30] = row['tform']
     out_list[31] = row['gamma']
-
+    """
+    """
 
     return out_list
 
