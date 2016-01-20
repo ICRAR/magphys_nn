@@ -373,7 +373,7 @@ def map_inputrow2list(row, input_filter_types):
 
 
 def map_outputrow2list(row):
-    out_list = [None] * 15
+    out_list = [None] * 32
 
     """
     out_list[0] = row['tau_V']

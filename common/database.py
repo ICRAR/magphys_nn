@@ -34,6 +34,8 @@ def db_init(db_string):
     global connection
     connection = engine.connect()
 
+    return connection
+
 
 def add_process_data_to_db(galaxy, run_id, sh_filename):
 

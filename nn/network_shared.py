@@ -7,7 +7,9 @@ sys.path.append(os.path.abspath(os.path.join(base_path, '..')))
 
 import numpy as np
 from common.database import get_train_test_data
+from math import sqrt
 import pickle
+from keras.callbacks import Callback
 from common.logger import config_logger
 
 LOG = config_logger(__name__)
@@ -29,8 +31,8 @@ class ArrayNormaliser(object):
         maximums = [0] * len(array[0])
 
         for y in range(0, y_len):
-            minimum = array[y][0]
-            maximum = array[y][0]
+            minimum = array[0][y]
+            maximum = array[0][y]
 
             for x in range(0, x_len):
 
@@ -69,6 +71,42 @@ class ArrayNormaliser(object):
             return None
 
         return ((value - self.min) / (self.max - self.min)) * (self.dataset_maxs[array_index]  - self.dataset_mins[array_index]) + self.dataset_mins[array_index]
+
+
+class History_Log(Callback):
+
+    def __init__(self):
+        super(Callback, self).__init__()
+        self.last_batch = None
+        self.epoch_data = None
+
+    def on_train_begin(self, logs={}):
+        pass
+
+    def on_epoch_begin(self, epoch, logs={}):
+        pass
+
+    def on_batch_end(self, batch, logs={}):
+        self.last_batch = logs['loss']
+
+    def on_epoch_end(self, epoch, logs={}):
+        self.epoch_data = {'loss': self.last_batch, 'val_loss': logs['val_loss']}
+
+
+def mean_values(array):
+    means = []
+    for item in range(0, len(array[0])):
+        means.append(np.mean(array[:,item]))
+
+    return means
+
+
+def std_dev(array):
+    std = []
+    for item in range(0, len(array[0])):
+        std.append(np.std(array[:, item]))
+
+    return std
 
 
 def check_temp(filename, config):
@@ -163,7 +201,7 @@ def get_training_data(config, tmp_file, single_output=None, single_input=None,
     print 'Redshift'
     print np.shape(redshifts)
 
-    print 'First 5'
+    print '\n\n\nFirst 5'
     for i in range(0, 5):
         print all_in[i]
         print all_out[i]
@@ -197,12 +235,26 @@ def get_training_data(config, tmp_file, single_output=None, single_input=None,
 
         LOG.info('Normalising done.')
 
-    print 'First 5 normalised'
+    print '\n\n\nFirst 5 normalised'
     for i in range(0, 5):
         print all_in[i]
         print all_out[i]
         print galaxy_ids[i]
         print redshifts[i]
+
+    all_in = np.array(all_in)
+    all_out = np.array(all_out)
+
+    mean_in = mean_values(all_in)
+    mean_out = mean_values(all_out)
+    std_in = std_dev(all_in)
+    std_out = std_dev(all_out)
+
+    print 'Mean std'
+    for i in range(0, len(mean_in)):
+        print'{0}   {1}'.format(mean_in[i], std_in[i])
+
+    exit()
 
     test_in, train_in = split_data(all_in, config['test_data'])
     redshift_test, redshift_train = split_data(redshifts, config['test_data'])
@@ -212,14 +264,16 @@ def get_training_data(config, tmp_file, single_output=None, single_input=None,
     #for i in range(0, len(test_in)):
     #    print 'Galaxy ID: {0} Redshift: {1} test_in: {2} test_out: {3}\n'.format(galaxy_ids_test[i], redshift_test[i], test_in[i], test_out[i])
 
+    """
     print 'Training in, out'
     print np.shape(train_in)
     print np.shape(train_out)
     print 'Testing in, out'
     print np.shape(test_in)
     print np.shape(test_out)
+    """
 
-    print 'First test 5'
+    print '\n\n\nFirst test 5'
     for i in range(0, 5):
         print test_in[i]
         print test_out[i]
@@ -233,6 +287,12 @@ def get_training_data(config, tmp_file, single_output=None, single_input=None,
     return {'train_in': train_in, 'train_out': train_out, 'test_in': test_in, 'test_out': test_out,
             'galaxy_ids_test': galaxy_ids_test, 'galaxy_ids_train': galaxy_ids_train,
             'redshifts_test': redshift_test, 'redshifts_train': redshift_train,
-            'in_normaliser': all_in_normaliser, 'out_normaliser': all_out_normaliser}
+            'in_normaliser': all_in_normaliser, 'out_normaliser': all_out_normaliser,
+            'mean_in': mean_in, 'mean_out': mean_out,
+            'stddev_in':std_in, 'stddev_out':std_out}
 
+
+def write_dict(f, dictionary):
+    for k, v in dictionary.iteritems():
+        f.write('{0}            {1}\n'.format(k, v))
 __author__ = 'ict310'
