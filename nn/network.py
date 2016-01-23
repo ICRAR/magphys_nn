@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 from common.database import db_init
 from keras.utils.visualize_util import to_graph
 from common.logger import config_logger, add_file_handler_to_root
-from network_shared import get_training_data, write_dict, History_Log, mean_values
+from network_shared import get_training_data, write_dict, History_Log
 from unknown_input import replace_mean, replace_zeros
 
 LOG = config_logger(__name__)
@@ -73,8 +73,15 @@ optimiser_names = [
 
 
 def save_graph(history, filename, epochs_per_entry):
+    """
+    Saves a neural network loss graph. With loss and validation loss over epoch
+    :param history:
+    :param filename:
+    :param epochs_per_entry:
+    :return:
+    """
     plt.clf()
-    x = np.linspace(0, len(history)*epochs_per_entry, len(history))
+    x = range(0, len(history) * epochs_per_entry, epochs_per_entry)
     y1 = []
     y2 = []
 
@@ -95,51 +102,6 @@ def save_graph(history, filename, epochs_per_entry):
     plt.xlabel('epochs')
 
     plt.savefig(filename='figure {0}.png'.format(filename), format='png')
-
-def normalise_2Darray(array, ignore=0, type=0):
-    x_len = len(array)
-    y_len = len(array[0])
-
-    minimums = [0] * len(array[0])
-    maximums = [0] * len(array[0])
-
-    for y in range(0, y_len):
-        minimum = array[y][0]
-        maximum = array[y][0]
-
-        for x in range(0, x_len):
-
-            if ignore > 0:
-                ignore -= 1
-                continue
-
-            if array[x][y] > maximum:
-                maximum = array[x][y]
-            elif array[x][y] < minimum:
-                minimum = array[x][y]
-
-        for x in range(0, x_len):
-            if type == 1: # -1 to 1
-                array[x][y] = 2*((array[x][y] - minimum) / float(maximum - minimum)) - 1
-            else: # 0 to 1
-                array[x][y] = ((array[x][y] - minimum) / float(maximum - minimum))
-
-        minimums[y] = minimum
-        maximums[y] = maximum
-
-    return minimums, maximums, array
-
-def denormalise_value(value, minimum, maximum):
-    return value * (maximum - minimum) + minimum
-
-# Inputs: 40 parameters + repeat_redshift * redshift values.
-# Repeat redshift can be used to add redshift in to the input layer multiple times.
-
-# Outputs:
-# median = 32
-# best_fit = 16
-# best_fit_model = 4
-# best_fit_inputs = 20. That weird line in the fit file that contains different values for the standard inputs.
 
 db_init('sqlite:///Database_run06.db')
 
@@ -433,7 +395,7 @@ if __name__ == '__main__':
     tmp_file = 'nn_last_tmp_input2.tmp'
 
     for item in hidden_nodes:
-            run_network_keras(item, 1, "mse", normalise_input=(0, 1), optimiser=0, unknown_input_handler=replace_zeros)
+            run_network_keras(item, 1, "mse", normalise_input='standardise', normalise_output='normalise', optimiser=0, unknown_input_handler=replace_zeros)
 
 LOG.info("Done")
 
