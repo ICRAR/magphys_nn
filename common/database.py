@@ -19,7 +19,8 @@ from sqlalchemy.sql import select
 from database_definition import *
 from logger import config_logger
 from database_output_formatting import *
-import os
+from nn.unknown_input import get_unknown_hanlder
+import numpy as np
 
 LOG = config_logger(__name__)
 
@@ -281,22 +282,32 @@ def check_valid_row(row):
     :param row:
     :return:
     """
-    for v in row:
-        if v == -999 or v == 0:
-            return False
+    if len([i for i in row if i <= 0]) == 0:
+        return True
+    else:
+        return False
 
-    return True
 
+def get_train_test_data(DatabaseConfig):
 
-def get_train_test_data(num_test, num_train,
-                        input_type='normal', output_type='median',
-                        include_sigma=True,
-                        repeat_redshift=1,
-                        input_filter_types=None,
-                        unknown_input_handler=None):
+    num_test = DatabaseConfig['test_data']
+    num_train = DatabaseConfig['train_data']
+    input_type = DatabaseConfig['input_type']
+    output_type = DatabaseConfig['output_type']
+    include_sigma = DatabaseConfig['include_sigma']
+    input_filter_types = DatabaseConfig['input_filter_types']
+
+    if DatabaseConfig['unknown_input_handler'] is not None:
+        # Get the unknown input handler from the user's provided string.
+        # Crash if it's bogus.
+        unknown_input_handler = get_unknown_hanlder(DatabaseConfig['unknown_input_handler'])
+    else:
+        unknown_input_handler = None
+        print 'No unknown input handler.'
 
     print 'Getting from DB'
     total_to_get = num_train+num_test
+    # Ignore the warnings considering comparisons with None. SQLAlchemy requires this format of comparison to work.
     count = connection.execute(select([func.count(NN_TRAIN)]).where(NN_TRAIN.c.fit_filename != None)
                                .limit(total_to_get + total_to_get*0.05)).first()[0]
 
@@ -308,8 +319,6 @@ def get_train_test_data(num_test, num_train,
     print 'Getting indexes for {0} entries'.format(count)
     result = connection.execute(select([NN_TRAIN]).where(NN_TRAIN.c.fit_filename != None)
                                 .order_by(ffunc.random())).fetchall()
-
-    # Train and test sets are now separated, need to get the actual data now.
 
     all_in = []
     all_out = []
@@ -359,7 +368,6 @@ def get_train_test_data(num_test, num_train,
                 row_inputs = map_inputrow2list_nosigma(input_row, input_filter_types)
 
         elif input_type == 'Jy':
-            # For these, the SNR and normal readings are already interleaved
 
             input_row = connection.execute(select([INPUT_JY]).where(INPUT_JY.c.galaxy_id == row['galaxy_id'])).first()
 
@@ -372,13 +380,12 @@ def get_train_test_data(num_test, num_train,
                 row_inputs = map_inputrow2list_Jy_nosigma(input_row, input_filter_types)
 
         # Add the row even if it's not a value, if we have an unknown input handler
-        if not unknown_input_handler and not check_valid_row(row_inputs):
-            # This row contains some invalid data (such as -999s or 0s)
+        if not unknown_input_handler and check_valid_row(row_inputs) == False:
+            # We don't have an unknown input handler and this row contains some invalid data (such as -999s or 0s)
             continue
 
-        # Get redshift
-        for i in range(0, repeat_redshift):
-            row_inputs.insert(0, row['redshift'])
+        # Get redshift and append it to the input.
+        row_inputs.insert(0, row['redshift'])
 
         redshifts.append(row['redshift'])
 
@@ -393,7 +400,11 @@ def get_train_test_data(num_test, num_train,
         sys.stdout.flush()
 
         if added_count == total_to_get:
+            # We have what we need
             break
+
+    all_in = np.array(all_in)
+    all_out = np.array(all_out)
 
     if unknown_input_handler:
         all_in = unknown_input_handler(all_in, 0)  # Ignore the first one as this is redshift and CAN be 0
