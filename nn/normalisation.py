@@ -79,9 +79,9 @@ class ArrayNormaliser(AbstractArrayNormaliser):
         :param value the value to scale
         :param the y array index corresponds to the type of value that should be scaled (used to get min and max for that y set)
         """
+        if type(self.dataset_mins) is float or int:
+            return ((value - self.min) / (self.max - self.min)) * (self.dataset_maxs - self.dataset_mins) + self.dataset_mins
 
-        if value > self.max or value < self.min:
-            return None
 
         return ((value - self.min) / (self.max - self.min)) * (self.dataset_maxs[position] - self.dataset_mins[position]) + self.dataset_mins[position]
 
@@ -105,11 +105,38 @@ class ArrayStandardiser(AbstractArrayNormaliser):
         return array * self.std + self.means
 
     def denormalise_value(self, value, position):
-        return value * self.std[position] + self.means[position]
+        if type(self.means) is float or int:
+            return value * self.std+ self.means
+        else:
+            return value * self.std[position] + self.means[position]
 
 
+class ArraySoftmax(AbstractArrayNormaliser):
+    """
+    Implements softmax on an array.
+
+    Can not de-normalise!
+    """
+
+    def __init__(self):
+        pass
+
+    def normalise(self, array):
+        mean = np.mean(array)
+        std = np.std(array)
+
+        return 1 / (1 + np.exp(-(array - mean) / std))
+
+    def denormalise(self, array):
+        raise NotImplementedError('Softmax cannot de-normalise')
+
+    def denormalise_value(self, value, position):
+        self.denormalise(value)
+
+# Just some aliases
 normalise = ArrayNormaliser
 standardise = ArrayStandardiser
+softmax = ArraySoftmax
 
 
 def get_normaliser(name):

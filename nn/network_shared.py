@@ -12,6 +12,7 @@ import pickle
 from keras.callbacks import Callback
 from common.logger import config_logger
 from normalisation import normaliser_from_user
+from binning import get_binning_function
 
 LOG = config_logger(__name__)
 
@@ -36,9 +37,21 @@ class History_Log(Callback):
         self.epoch_data = {'loss': self.last_batch, 'val_loss': logs['val_loss']}
 
 
-def write_dict(f, dictionary):
+def recursive_write_dict(f, dictionary, prepend=''):
+    """
+    Writes a dictionary out to the specified file.
+    If the dictionary contains nested dictionaries, they are printed out on a different row
+    :param f:
+    :param dictionary:
+    :param prepend:
+    :return:
+    """
     for k, v in dictionary.iteritems():
-        f.write('{0}            {1}\n'.format(k, v))
+        if type(v) is dict:
+            f.write('{0}\n'.format(k))
+            recursive_write_dict(f, v, '{0}\t'.format(prepend))
+        else:
+            f.write('{0}{1}\t\t{2}\n'.format(prepend, k, v))
 
 
 def check_temp(filename, config):
@@ -81,69 +94,107 @@ def write_file(filename, config, all_in, all_out, redshifts, galaxy_ids):
         pickle.dump(galaxy_ids, f, pickle.HIGHEST_PROTOCOL)
 
 
-def get_training_data(config, tmp_file, single_output=None, single_input=None,
-                      input_normaliser=None, output_normaliser=None,
-                      unknown_input_handler=None):
+def remove_above_percentile(all_in, all_out, redshifts, galaxy_ids, percentile):
+    percentiles = np.percentile(all_in, percentile, axis=0)
+
+    bad_ids = set() # set is useful for no repeats
+    for i in range(0, len(all_in[0])):
+        tmp_list = np.where(all_in[:,i] > percentiles[i])[0]
+        bad_ids.update(tmp_list)
+
+    print 'Bad IDs based on percentile {0}: {1}'.format(percentile, len(bad_ids))
+
+    bad_ids = list(bad_ids) # numpy doesn't like sets
+    all_in = np.delete(all_in, bad_ids, axis=0)
+    all_out = np.delete(all_out, bad_ids, axis=0)
+    redshifts = np.delete(redshifts, bad_ids, axis=0)
+    galaxy_ids = np.delete(galaxy_ids, bad_ids, axis=0)
+
+    return all_in, all_out, redshifts, galaxy_ids
+
+
+def remove_negative_values(all_in, all_out, redshifts, galaxy_ids):
+    # Remove negative fluxes
+    bad_ids = set()
+    for i in range(0, len(all_in[0])):
+        tmp_list = np.where(all_in[:,i] < 0)[0]
+        bad_ids.update(tmp_list)
+
+    LOG.info('****Removing {0} total negative input values****'.format(len(bad_ids)))
+
+    bad_ids = list(bad_ids)  # numpy doesn't like sets
+    all_in = np.delete(all_in, bad_ids, axis=0)
+    all_out = np.delete(all_out, bad_ids, axis=0)
+    redshifts = np.delete(redshifts, bad_ids, axis=0)
+    galaxy_ids = np.delete(galaxy_ids, bad_ids, axis=0)
+
+    return all_in, all_out, redshifts, galaxy_ids
+
+
+def shuffle_arrays(*args):
     """
-    Gets sets of training and test data for use in a neural network.
-    All returned as numpy arrays.
-    Return dictionary has the following elements:
+    Shuffles all of the given arrays the same way.
 
-    train_in: Training data input data. Shape (total_sets - testing_sets, number_input_features)
-    train_out: Training output data. Shape (total_sets - testing, number_output_features
-    test_in:
-    test_out
-    galaxy_ids_test:
-    galaxy_ids_train:
-    redshifts_train:
-    redshifts_test:
-    in_normaliser:
-    out_normaliser:
-    mean_in:
-    mean_out:
-    stddev_in:
-    stddev_out:
+    Arrays must be the same length and must be numpy arrays
+    """
+    if not args:
+        # passed nothing
+        return
 
-    :param config:
-    :param tmp_file:
-    :param single_output:
-    :param single_input:
-    :param input_normaliser:
-    :param output_normaliser:
-    :param unknown_input_handler:
+    # Make a random permutation
+    perm = np.random.permutation(len(args[0]))
+
+    out_tuple = list()
+    for count, item in enumerate(args):
+        # Apply permutation to each item, then append them to a list for outputting
+        out_tuple.append(item[perm])
+
+    return tuple(out_tuple)
+
+
+def random_in_shape(array, low=0, high=1):
+    """
+    Return a set of random numbers in the same shape as array
+    :param array:
+    :param low:
+    :param high:
     :return:
     """
 
-    # This dictionary is what we use to check whether we need to re-query the database.
-    # If this exact same dict is read from the temp file, then the temp file is fine.
-    # If it is not, we need to re-query the database
-    nn_config_dict = {'test':config['test_data'],
-                      'train':config['train_data'],
-                      'run':config['run_id'],
-                      'input_type': config['input_type'],
-                      'output_type':config['output_type'],
-                      'repeat_redshift':config['repeat_redshift'],
-                      'input_filter_types':config['input_filter_types'],
-                      'include_sigma': config['include_sigma'],
-                      'unknown_input_handler': unknown_input_handler}
+    shape = np.shape(array)
+    return np.random.uniform(low, high, shape)
 
-    if check_temp(tmp_file, nn_config_dict):
+
+def get_training_data(DatabaseConfig, PreprocessingConfig, FileConfig):
+
+    tmp_file = FileConfig['temp_file']
+    erase_above = PreprocessingConfig['erase_above']
+    remove_negatives = PreprocessingConfig['remove_negative_inputs']
+    flip = PreprocessingConfig['flip']
+    random_input = PreprocessingConfig['random_input']
+    test_data = DatabaseConfig['test_data']
+
+    bin_type = PreprocessingConfig['binning_type']
+    bin_precision = PreprocessingConfig['binning_precision']
+
+    single_input = PreprocessingConfig['single_input']
+    single_output = PreprocessingConfig['single_output']
+
+    input_normaliser = PreprocessingConfig['normalise_input']
+    output_normaliser = PreprocessingConfig['normalise_output']
+
+    if check_temp(tmp_file, DatabaseConfig): # Check the temp file
+
         LOG.info('Correct temp file exists at {0}, loading from temp'.format(tmp_file))
         all_in, all_out, redshifts, galaxy_ids = load_from_file(tmp_file)
         LOG.info('Done.')
     else:
+
         LOG.info('No temp file, reading from database.')
-        all_in, all_out, redshifts, galaxy_ids = get_train_test_data(nn_config_dict['test'],
-                                  nn_config_dict['train'],
-                                  input_type=nn_config_dict['input_type'],
-                                  output_type=nn_config_dict['output_type'],
-                                  include_sigma=nn_config_dict['include_sigma'],
-                                  repeat_redshift=nn_config_dict['repeat_redshift'],
-                                  input_filter_types=nn_config_dict['input_filter_types'],
-                                  unknown_input_handler=unknown_input_handler)
+        all_in, all_out, redshifts, galaxy_ids = get_train_test_data(DatabaseConfig)
 
         LOG.info('Done. Writing temp file for next time.')
-        write_file(tmp_file, nn_config_dict, all_in, all_out, redshifts, galaxy_ids)
+        write_file(tmp_file, DatabaseConfig, all_in, all_out, redshifts, galaxy_ids)
         LOG.info('Done. Temp file written to {0}'.format(tmp_file))
 
     # Convert the arrays to np arrays
@@ -152,6 +203,46 @@ def get_training_data(config, tmp_file, single_output=None, single_input=None,
     redshifts = np.array(redshifts)
     galaxy_ids = np.array(galaxy_ids)
 
+    # Flip input and output
+    if flip:
+        LOG.info('****Flipping input and output!****')
+        tmp = all_in
+        all_in = all_out
+        all_out = tmp
+
+    # Use random values for input
+    if random_input:
+        LOG.info('****Using randomly generated input values!****')
+        all_in = random_in_shape(all_in)
+
+    # Do we want only a single output/input?
+    if single_output is not None:
+        LOG.info('****Using single output {0}****'.format(single_output))
+        all_out = all_out[:,single_output]
+
+    if single_input is not None:
+        LOG.info('****Using single input {0}****'.format(single_input))
+        all_in = all_in[:,single_input]
+
+    # Remove negative values in the input (BEFORE normalisation!)
+    if remove_negatives:
+        LOG.info('****Removing negative input values****'.format(single_input))
+        all_in, all_out, redshifts, galaxy_ids = remove_negative_values(all_in, all_out, redshifts, galaxy_ids)
+
+    # Remove negative flux and values above percentile 99
+    if erase_above is not None:
+        LOG.info('****Removing all input values above percentile {0}'.format(erase_above))
+        all_in, all_out, redshifts, galaxy_ids = remove_above_percentile(all_in, all_out, redshifts, galaxy_ids
+                                                                         , erase_above)
+    # Bin the values in to percentile groups
+    if bin_type is not None:
+        LOG.info('****Binning all input and output values at precision {0}****'.format(bin_precision))
+        bin_func = get_binning_function(bin_type)
+        all_in = bin_func(all_in, bin_precision)
+        all_in = all_in.astype('float32')
+
+        all_out = bin_func(all_out, bin_precision)
+        all_out = all_out.astype('float32')
     """
     print 'In shape'
     print np.shape(all_in)
@@ -164,18 +255,12 @@ def get_training_data(config, tmp_file, single_output=None, single_input=None,
 
     print '\n\n\nFirst 5'
     for i in range(0, 5):
-        print all_in[i]
-        print all_out[i]
         print galaxy_ids[i]
         print redshifts[i]
+        print all_in[i]
+        print all_out[i]
+        print
     """
-
-    # Do we want only a single output/input?
-    if single_output is not None and single_output > 0:
-        all_out = all_out[:,single_output]
-
-    if single_input is not None and single_input > 0:
-        all_in = all_in[:,single_input]
 
     in_normaliser = None
     out_normaliser = None
@@ -203,63 +288,43 @@ def get_training_data(config, tmp_file, single_output=None, single_input=None,
         LOG.info('Normalising output done.')
 
     """
-    print '\n\n\nFirst 5 normalised'
+    print '\n\n\nFirst 5'
     for i in range(0, 5):
-        print all_in[i]
-        print all_out[i]
         print galaxy_ids[i]
         print redshifts[i]
+        print all_in[i]
+        print all_out[i]
+        print
     """
 
+    # Grab some statistics of everything.
     mean_in = np.mean(all_in, axis=0)
     mean_out = np.mean(all_out, axis=0)
     std_in = np.std(all_in, axis=0)
     std_out = np.std(all_out, axis=0)
 
-    print '\n\n\nFirst 5 normalised'
-    for i in range(0, 5):
-        print all_in[i]
-        print all_out[i]
-        print galaxy_ids[i]
-        print redshifts[i]
+    min_in = np.min(all_in, axis=0)
+    max_in = np.max(all_in, axis=0)
 
-    print 'Mean in'
-    print mean_in
-    print 'Mean out'
-    print mean_out
-    print 'Std dev in'
-    print std_in
-    print 'Std dev out'
-    print std_out
+    min_out = np.min(all_out, axis=0)
+    max_out = np.max(all_out, axis=0)
 
-    print '\n\n\nFirst 5 de-normalised'
-    for i in range(0, 5):
-        print in_normaliser.denormalise(all_in[i])
-        print out_normaliser.denormalise(all_out[i])
-        print galaxy_ids[i]
-        print redshifts[i]
-
-    exit()
+    # Shuffle all arrays in the same way
+    all_in, all_out, redshifts, galaxy_ids = shuffle_arrays(all_in, all_out, redshifts, galaxy_ids)
 
     # Split the data up in to training and test sets.
-    split_point = config['test_data']
+    split_point = test_data
     test_in, train_in = split_data(all_in, split_point)
     redshift_test, redshift_train = split_data(redshifts, split_point)
     galaxy_ids_test, galaxy_ids_train = split_data(galaxy_ids, split_point)
     test_out, train_out = split_data(all_out, split_point)
 
-    """
-    print '\n\n\nFirst test 5'
-    for i in range(0, 5):
-        print test_in[i]
-        print test_out[i]
-        print galaxy_ids_test[i]
-        print redshift_test[i]
-    """
-
+    # A lot of data to return
     return {'train_in': train_in, 'train_out': train_out, 'test_in': test_in, 'test_out': test_out,
             'galaxy_ids_test': galaxy_ids_test, 'galaxy_ids_train': galaxy_ids_train,
             'redshifts_test': redshift_test, 'redshifts_train': redshift_train,
             'in_normaliser': in_normaliser, 'out_normaliser': out_normaliser,
             'mean_in': mean_in, 'mean_out': mean_out,
-            'stddev_in':std_in, 'stddev_out':std_out}
+            'stddev_in':std_in, 'stddev_out':std_out,
+            'min_in':min_in, 'max_in':max_in,
+            'min_out':min_out, 'max_out':max_out}
