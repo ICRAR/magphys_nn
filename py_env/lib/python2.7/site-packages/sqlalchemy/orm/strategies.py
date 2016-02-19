@@ -1325,8 +1325,19 @@ class JoinedLoader(AbstractRelationshipLoader):
 
         if adapter:
             if getattr(adapter, 'aliased_class', None):
+                # joining from an adapted entity.  The adapted entity
+                # might be a "with_polymorphic", so resolve that to our
+                # specific mapper's entity before looking for our attribute
+                # name on it.
+                efm = inspect(adapter.aliased_class).\
+                    _entity_for_mapper(
+                        parentmapper
+                        if parentmapper.isa(self.parent) else self.parent)
+
+                # look for our attribute on the adapted entity, else fall back
+                # to our straight property
                 onclause = getattr(
-                    adapter.aliased_class, self.key,
+                    efm.entity, self.key,
                     self.parent_property)
             else:
                 onclause = getattr(
@@ -1367,8 +1378,7 @@ class JoinedLoader(AbstractRelationshipLoader):
         # send a hint to the Query as to where it may "splice" this join
         eagerjoin.stop_on = entity.selectable
 
-        if self.parent_property.secondary is None and \
-                not parentmapper:
+        if not parentmapper:
             # for parentclause that is the non-eager end of the join,
             # ensure all the parent cols in the primaryjoin are actually
             # in the

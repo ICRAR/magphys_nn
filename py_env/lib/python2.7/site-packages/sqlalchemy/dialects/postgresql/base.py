@@ -102,7 +102,7 @@ via foreign key constraint, a decision must be made as to how the ``.schema``
 is represented in those remote tables, in the case where that remote
 schema name is also a member of the current
 `Postgresql search path
-<http://www.postgresql.org/docs/9.0/static/ddl-schemas.html#DDL-SCHEMAS-PATH>`_.
+<http://www.postgresql.org/docs/current/static/ddl-schemas.html#DDL-SCHEMAS-PATH>`_.
 
 By default, the Postgresql dialect mimics the behavior encouraged by
 Postgresql's own ``pg_get_constraintdef()`` builtin procedure.  This function
@@ -506,7 +506,7 @@ dialect in conjunction with the :class:`.Table` construct:
 .. seealso::
 
     `Postgresql CREATE TABLE options
-    <http://www.postgresql.org/docs/9.3/static/sql-createtable.html>`_
+    <http://www.postgresql.org/docs/current/static/sql-createtable.html>`_
 
 ENUM Types
 ----------
@@ -568,6 +568,8 @@ a new version.
 """
 from collections import defaultdict
 import re
+import datetime as dt
+
 
 from ... import sql, schema, exc, util
 from ...engine import default, reflection
@@ -673,6 +675,10 @@ class INTERVAL(sqltypes.TypeEngine):
     @property
     def _type_affinity(self):
         return sqltypes.Interval
+
+    @property
+    def python_type(self):
+        return dt.timedelta
 
 PGInterval = INTERVAL
 
@@ -1540,7 +1546,7 @@ class PGCompiler(compiler.SQLCompiler):
                 c.table if isinstance(c, expression.ColumnClause)
                 else c for c in select._for_update_arg.of)
             tmp += " OF " + ", ".join(
-                self.process(table, ashint=True, **kw)
+                self.process(table, ashint=True, use_schema=False, **kw)
                 for table in tables
             )
 

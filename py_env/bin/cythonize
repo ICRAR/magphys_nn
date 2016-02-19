@@ -1,4 +1,4 @@
-#!/home/ict310/Studentship1/git/magphys_nn/py_env/bin/python
+#!/home/sam/Desktop/venv/bin/python2
 # EASY-INSTALL-ENTRY-SCRIPT: 'Cython==0.23.4','console_scripts','cythonize'
 __requires__ = 'Cython==0.23.4'
 import sys

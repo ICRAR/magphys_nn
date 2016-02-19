@@ -446,6 +446,7 @@ def _collect_update_commands(
                 set(propkey_to_col).intersection(state_dict).difference(
                     mapper._pk_keys_by_table[table])
             )
+            has_all_defaults = True
         else:
             params = {}
             for propkey in set(propkey_to_col).intersection(
@@ -460,6 +461,12 @@ def _collect_update_commands(
                 elif state.manager[propkey].impl.is_equal(
                         value, state.committed_state[propkey]) is not True:
                     params[col.key] = value
+
+            if mapper.base_mapper.eager_defaults:
+                has_all_defaults = mapper._server_onupdate_default_cols[table].\
+                    issubset(params)
+            else:
+                has_all_defaults = True
 
         if update_version_id is not None and \
                 mapper.version_id_col in mapper._cols_by_table[table]:
@@ -483,7 +490,7 @@ def _collect_update_commands(
             col = mapper.version_id_col
             params[col._label] = update_version_id
 
-            if col.key not in params and \
+            if (bulk or col.key not in params) and \
                     mapper.version_id_generator is not False:
                 val = mapper.version_id_generator(update_version_id)
                 params[col.key] = val
@@ -527,7 +534,7 @@ def _collect_update_commands(
             params.update(pk_params)
             yield (
                 state, state_dict, params, mapper,
-                connection, value_params)
+                connection, value_params, has_all_defaults)
 
 
 def _collect_post_update_commands(base_mapper, uowtransaction, table,
@@ -617,25 +624,24 @@ def _emit_update_statements(base_mapper, uowtransaction,
                     type_=mapper.version_id_col.type))
 
         stmt = table.update(clause)
-        if mapper.base_mapper.eager_defaults:
-            stmt = stmt.return_defaults()
-        elif mapper.version_id_col is not None:
-            stmt = stmt.return_defaults(mapper.version_id_col)
-
         return stmt
 
-    statement = base_mapper._memo(('update', table), update_stmt)
+    cached_stmt = base_mapper._memo(('update', table), update_stmt)
 
-    for (connection, paramkeys, hasvalue), \
+    for (connection, paramkeys, hasvalue, has_all_defaults), \
         records in groupby(
             update,
             lambda rec: (
                 rec[4],  # connection
                 set(rec[2]),  # set of parameter keys
-                bool(rec[5]))):  # whether or not we have "value" parameters
-
+                bool(rec[5]),  # whether or not we have "value" parameters
+                rec[6]  # has_all_defaults
+            )
+    ):
         rows = 0
         records = list(records)
+
+        statement = cached_stmt
 
         # TODO: would be super-nice to not have to determine this boolean
         # inside the loop here, in the 99.9999% of the time there's only
@@ -643,11 +649,17 @@ def _emit_update_statements(base_mapper, uowtransaction,
         assert_singlerow = connection.dialect.supports_sane_rowcount
         assert_multirow = assert_singlerow and \
             connection.dialect.supports_sane_multi_rowcount
-        allow_multirow = not needs_version_id
+        allow_multirow = has_all_defaults and not needs_version_id
+
+        if bookkeeping and not has_all_defaults and \
+                mapper.base_mapper.eager_defaults:
+            statement = statement.return_defaults()
+        elif mapper.version_id_col is not None:
+            statement = statement.return_defaults(mapper.version_id_col)
 
         if hasvalue:
             for state, state_dict, params, mapper, \
-                    connection, value_params in records:
+                    connection, value_params, has_all_defaults in records:
                 c = connection.execute(
                     statement.values(value_params),
                     params)
@@ -667,7 +679,7 @@ def _emit_update_statements(base_mapper, uowtransaction,
             if not allow_multirow:
                 check_rowcount = assert_singlerow
                 for state, state_dict, params, mapper, \
-                        connection, value_params in records:
+                        connection, value_params, has_all_defaults in records:
                     c = cached_connections[connection].\
                         execute(statement, params)
 
@@ -697,7 +709,7 @@ def _emit_update_statements(base_mapper, uowtransaction,
 
                 # TODO: why with bookkeeping=False?
                 for state, state_dict, params, mapper, \
-                        connection, value_params in records:
+                        connection, value_params, has_all_defaults in records:
                     _postfetch(
                         mapper,
                         uowtransaction,
@@ -727,7 +739,7 @@ def _emit_insert_statements(base_mapper, uowtransaction,
     """Emit INSERT statements corresponding to value lists collected
     by _collect_insert_commands()."""
 
-    statement = base_mapper._memo(('insert', table), table.insert)
+    cached_stmt = base_mapper._memo(('insert', table), table.insert)
 
     for (connection, pkeys, hasvalue, has_all_pks, has_all_defaults), \
         records in groupby(
@@ -738,6 +750,9 @@ def _emit_insert_statements(base_mapper, uowtransaction,
                 bool(rec[5]),  # whether we have "value" parameters
                 rec[6],
                 rec[7])):
+
+        statement = cached_stmt
+
         if not bookkeeping or \
                 (
                     has_all_defaults
@@ -1248,10 +1263,16 @@ class BulkUpdate(BulkUD):
                 "Invalid expression type: %r" % key)
 
     def _do_exec(self):
-        values = dict(
+
+        values = [
             (self._resolve_string_to_expr(k), v)
-            for k, v in self.values.items()
-        )
+            for k, v in (
+                self.values.items() if hasattr(self.values, 'items')
+                else self.values)
+        ]
+        if not self.update_kwargs.get('preserve_parameter_order', False):
+            values = dict(values)
+
         update_stmt = sql.update(self.primary_table,
                                  self.context.whereclause, values,
                                  **self.update_kwargs)
@@ -1301,7 +1322,9 @@ class BulkUpdateEvaluate(BulkEvaluate, BulkUpdate):
 
     def _additional_evaluators(self, evaluator_compiler):
         self.value_evaluators = {}
-        for key, value in self.values.items():
+        values = (self.values.items() if hasattr(self.values, 'items')
+                  else self.values)
+        for key, value in values:
             key = self._resolve_key_to_attrname(key)
             if key is not None:
                 self.value_evaluators[key] = evaluator_compiler.process(

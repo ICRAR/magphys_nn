@@ -20,16 +20,12 @@ def test0():
 
 
 class BROKEN_ON_PURPOSE_Add(gof.Op):
+
+    __props__ = ("py_offset",)
+    
     def __init__(self, py_offset):
         gof.Op.__init__(self)
         self.py_offset = py_offset
-
-    def __eq__(self, other):
-        return (type(self) == type(other) and
-                (self.py_offset == other.py_offset))
-
-    def __hash__(self):
-        return 29834 ^ hash(type(self)) ^ hash(self.py_offset)
 
     def make_node(self, a, b):
         a = theano.tensor.as_tensor_variable(a)
@@ -44,7 +40,7 @@ class BROKEN_ON_PURPOSE_Add(gof.Op):
         a, b = inp
         out, = out_
         z = a + b
-        #ERROR TO ADD THIS CRAPPY OFFSET
+        # ERROR TO ADD THIS CRAPPY OFFSET
         if self.py_offset:
             out[0] = z + 0.5
         else:
@@ -105,16 +101,11 @@ class WeirdBrokenOp(gof.Op):
     In both cases, it does not set the destroy_map or view_map correctly so
     it should raise an error in DebugMode.
     """
+    __props__ = ("behaviour", )
+    
     def __init__(self, behaviour):
         gof.Op.__init__(self)
         self.behaviour = behaviour
-
-    def __eq__(self, other):
-        return (type(self) == type(other)
-                and (self.behaviour == other.behaviour))
-
-    def __hash__(self):
-        return hash(type(self)) ^ hash(self.behaviour)
 
     def make_node(self, a):
         a_ = theano.tensor.as_tensor_variable(a)
@@ -209,15 +200,15 @@ def test_badthunkoutput():
             inconsistent(a, b),
             mode=debugmode.DebugMode(check_c_code=theano.config.cxx))
 
-    #this should evaluate with no error
+    # this should evaluate with no error
     f_good([1.0, 2.0, 3.0], [2, 3, 4])
     if not theano.config.cxx:
         raise SkipTest("G++ not available, so we need to skip this test.")
 
     try:
         f_inconsistent([1.0, 2.0, 3.0], [2, 3, 4])
-    except debugmode.BadThunkOutput, e:
-        #print repr(e)
+    except debugmode.BadThunkOutput as e:
+        # print repr(e)
         assert e.r.owner.op is inconsistent
         return  # TEST PASS
 
@@ -242,7 +233,7 @@ def test_badoptimization():
 
     try:
         f([1.0, 2.0, 3.0], [2, 3, 4],)
-    except debugmode.BadOptimization, e:
+    except debugmode.BadOptimization as e:
         assert str(e.reason) == 'insert_broken_add'
         return  # TEST PASS
 
@@ -275,7 +266,7 @@ def test_badoptimization_opt_err():
 
     try:
         f([1.0, 2.0, 3.0], [2, 3, 4],)
-    except Exception, e:
+    except Exception as e:
         assert 'insert_bigger_b_add' in exc_message(e)
         return  # TEST PASS
 
@@ -534,8 +525,8 @@ class Test_ViewMap(unittest.TestCase):
         try:
             f([1, 2, 3, 4], [5, 6, 7, 8])
             assert False  # DebugMode should have caught the error
-        except debugmode.BadViewMap, e:
-            #print e
+        except debugmode.BadViewMap as e:
+            # print e
             pass
 
         # the situation can be rescued by picking one of the inputs and
@@ -543,7 +534,7 @@ class Test_ViewMap(unittest.TestCase):
         # This unfairly disables any destructive operations on the
         # input, but guarantees correctness.
         #custom_op.view_map = {0:[0], 1:[1]}
-        #f([1,2,3,4],[5,6,7,8])
+        # f([1,2,3,4],[5,6,7,8])
 
 
 class Test_check_isfinite(unittest.TestCase):
@@ -594,22 +585,19 @@ class Test_check_isfinite(unittest.TestCase):
         f = theano.function([x], (x + 2) * 5,
                 mode=debugmode.DebugMode(check_isfinite=False))
 
-        #nan should go through
+        # nan should go through
         f(numpy.log([3, -4, 5]))
 
-        #inf should go through
+        # inf should go through
         infs = numpy.asarray([1.0, 1., 1.]) / 0
-        #print infs
+        # print infs
         f(infs)
         return
 
 
 class BrokenCImplementationAdd(gof.Op):
-    def __eq__(self, other):
-        return type(self) == type(other)
 
-    def __hash__(self):
-        return hash(type(self))
+    __props__ = ()
 
     def make_node(self, a, b):
         a = theano.tensor.as_tensor_variable(a)
@@ -621,11 +609,11 @@ class BrokenCImplementationAdd(gof.Op):
         return r
 
     def perform(self, node, inp, out_):
-        #print 'executing python perform'
+        # print 'executing python perform'
         a, b = inp
         out, = out_
         z = a + b
-        #print 'out[0] was:', out[0]
+        # print 'out[0] was:', out[0]
         out[0] = z
 
     def c_code_cache_version(self):
@@ -703,12 +691,7 @@ class VecAsRowAndCol(gof.Op):
     This Op exists to check everything is correct when an Op has
     two outputs with different broadcasting patterns.
     """
-
-    def __eq__(self, other):
-        return type(self) == type(other)
-
-    def __hash__(self):
-        return hash(type(self))
+    __props__ = ()
 
     def make_node(self, v):
         if not isinstance(v, gof.Variable):
@@ -755,8 +738,8 @@ class Test_preallocated_output(unittest.TestCase):
 
         f = theano.function([a, b], out, mode=mode)
         out_val = f(a_val, b_val)
-        #print 'out_val =', out_val
-        #print out_val.strides
+        # print 'out_val =', out_val
+        # print out_val.strides
 
         # Should raise an Exception, since the output buffer is
         # used incorrectly.
@@ -787,8 +770,8 @@ class Test_preallocated_output(unittest.TestCase):
 
         f = theano.function([a, b], out, mode=mode)
         out_val = f(a_val, b_val)
-        #print 'out_val =', out_val
-        #print out_val.strides
+        # print 'out_val =', out_val
+        # print out_val.strides
 
         # Should raise an Exception, since the output buffer is
         # used incorrectly.

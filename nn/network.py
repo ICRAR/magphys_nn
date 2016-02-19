@@ -394,8 +394,19 @@ if __name__ == '__main__':
 
     tmp_file = 'nn_last_tmp_input2.tmp'
 
+    output_dir = 'layers_nodes_standardise_no_input_handler/'
+
+    os.mkdir('layers_nodes_standardise_no_input_handler')
+
     for item in hidden_nodes:
-            run_network_keras(item, 1, "mse", normalise_input='standardise', normalise_output='normalise', optimiser=0, unknown_input_handler=replace_zeros)
+        for item2 in hidden_layers:
+            run_network_keras(item2, item, "mse", normalise_input='standardise', optimiser=0, unknown_input_handler=None)
+
+    output_dir = 'individual_params/'
+
+    os.mkdir('individual_params')
+    for item in output_parameters:
+        run_network_keras(100, 3, 'mse', normalise_input='standardise', optimiser=0)
 
 LOG.info("Done")
 

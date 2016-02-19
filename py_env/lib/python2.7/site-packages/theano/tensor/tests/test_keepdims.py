@@ -1,10 +1,10 @@
 import unittest
 
-from nose.plugins.attrib import attr
 import numpy
 
 import theano
 from theano import tensor, function
+from theano.tests.unittest_tools import attr
 
 
 # this tests other ops to ensure they keep the dimensions of their
@@ -13,7 +13,7 @@ class TestKeepDims(unittest.TestCase):
 
     def makeKeepDims_local(self, x, y, axis):
         if axis is None:
-            newaxis = range(x.ndim)
+            newaxis = list(range(x.ndim))
         elif isinstance(axis, int):
             if axis < 0:
                 newaxis = [axis + x.type.ndim]

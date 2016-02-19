@@ -32,6 +32,11 @@ the ``pool_recycle`` option which controls the maximum age of any connection::
 
     engine = create_engine('mysql+mysqldb://...', pool_recycle=3600)
 
+.. seealso::
+
+    :ref:`pool_setting_recycle` - full description of the pool recycle feature.
+
+
 .. _mysql_storage_engines:
 
 CREATE TABLE arguments including Storage Engines
@@ -596,6 +601,8 @@ RESERVED_WORDS = set(
 
      'get', 'io_after_gtids', 'io_before_gtids', 'master_bind', 'one_shot',
         'partition', 'sql_after_gtids', 'sql_before_gtids',  # 5.6
+
+     'generated', 'optimizer_costs', 'stored', 'virtual',  # 5.7
 
      ])
 
@@ -2827,7 +2834,7 @@ class MySQLDialect(default.DefaultDialect):
             schema, table_name))
         sql = self._show_create_table(connection, None, charset,
                                       full_name=full_name)
-        if sql.startswith('CREATE ALGORITHM'):
+        if re.match(r'^CREATE (?:ALGORITHM)?.* VIEW', sql):
             # Adapt views to something table-like.
             columns = self._describe_table(connection, None, charset,
                                            full_name=full_name)
@@ -3117,6 +3124,11 @@ class MySQLTableDefinitionParser(object):
 
         # Column type keyword options
         type_kw = {}
+
+        if issubclass(col_type, (DATETIME, TIME, TIMESTAMP)):
+            if type_args:
+                type_kw['fsp'] = type_args.pop(0)
+
         for kw in ('unsigned', 'zerofill'):
             if spec.get(kw, False):
                 type_kw[kw] = True

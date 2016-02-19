@@ -548,9 +548,13 @@ class _MSDate(sqltypes.Date):
             if isinstance(value, datetime.datetime):
                 return value.date()
             elif isinstance(value, util.string_types):
+                m = self._reg.match(value)
+                if not m:
+                    raise ValueError(
+                        "could not parse %r as a date value" % (value, ))
                 return datetime.date(*[
                     int(x or 0)
-                    for x in self._reg.match(value).groups()
+                    for x in m.groups()
                 ])
             else:
                 return value
@@ -582,9 +586,13 @@ class TIME(sqltypes.TIME):
             if isinstance(value, datetime.datetime):
                 return value.time()
             elif isinstance(value, util.string_types):
+                m = self._reg.match(value)
+                if not m:
+                    raise ValueError(
+                        "could not parse %r as a time value" % (value, ))
                 return datetime.time(*[
                     int(x or 0)
-                    for x in self._reg.match(value).groups()])
+                    for x in m.groups()])
             else:
                 return value
         return process
@@ -774,21 +782,21 @@ class MSTypeCompiler(compiler.GenericTypeCompiler):
         return "TINYINT"
 
     def visit_DATETIMEOFFSET(self, type_, **kw):
-        if type_.precision:
+        if type_.precision is not None:
             return "DATETIMEOFFSET(%s)" % type_.precision
         else:
             return "DATETIMEOFFSET"
 
     def visit_TIME(self, type_, **kw):
         precision = getattr(type_, 'precision', None)
-        if precision:
+        if precision is not None:
             return "TIME(%s)" % precision
         else:
             return "TIME"
 
     def visit_DATETIME2(self, type_, **kw):
         precision = getattr(type_, 'precision', None)
-        if precision:
+        if precision is not None:
             return "DATETIME2(%s)" % precision
         else:
             return "DATETIME2"

@@ -18,6 +18,7 @@ from .session import Session, sessionmaker
 from .scoping import scoped_session
 from .attributes import QueryableAttribute
 from .query import Query
+from sqlalchemy.util.compat import inspect_getargspec
 
 class InstrumentationEvents(event.Events):
     """Events related to class instrumentation events.
@@ -601,7 +602,7 @@ class MapperEvents(event.Events):
                 meth = getattr(cls, identifier)
                 try:
                     target_index = \
-                        inspect.getargspec(meth)[0].index('target') - 1
+                        inspect_getargspec(meth)[0].index('target') - 1
                 except ValueError:
                     target_index = None
 
@@ -1709,7 +1710,7 @@ class AttributeEvents(event.Events):
 
         and also during replace operations::
 
-            u1.addresess = [a2, a3]  #  <- new collection
+            u1.addresses = [a2, a3]  #  <- new collection
 
         :param target: the object instance receiving the event.
          If the listener is registered with ``raw=True``, this will
@@ -1772,7 +1773,7 @@ class QueryEvents(event.Events):
             def no_deleted(query):
                 for desc in query.column_descriptions:
                     if desc['type'] is User:
-                        entity = desc['expr']
+                        entity = desc['entity']
                         query = query.filter(entity.deleted == False)
                 return query
 

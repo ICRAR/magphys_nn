@@ -32,7 +32,7 @@ end
 # unset irrelevant variables
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV "/media/ict310/e1b54023-d95c-4cb5-8c47-e1216b8cc910/Studentship1/env"
+set -gx VIRTUAL_ENV "/home/sam/Desktop/venv"
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/bin" $PATH

@@ -355,6 +355,12 @@ class Result(object):
         # (remember, we can map to an OUTER JOIN)
         bq = self.bq
 
+        # add the clause we got from mapper._get_clause to the cache
+        # key so that if a race causes multiple calls to _get_clause,
+        # we've cached on ours
+        bq = bq._clone()
+        bq._cache_key += (_get_clause, )
+
         bq = bq.with_criteria(setup, tuple(elem is None for elem in ident))
 
         params = dict([
@@ -379,7 +385,6 @@ def bake_lazy_loaders():
     Python overhead for these operations.
 
     """
-    strategies.LazyLoader._strategy_keys[:] = []
     BakedLazyLoader._strategy_keys[:] = []
 
     properties.RelationshipProperty.strategy_for(
@@ -388,6 +393,8 @@ def bake_lazy_loaders():
         lazy=True)(BakedLazyLoader)
     properties.RelationshipProperty.strategy_for(
         lazy="baked_select")(BakedLazyLoader)
+
+    strategies.LazyLoader._strategy_keys[:] = BakedLazyLoader._strategy_keys[:]
 
 
 def unbake_lazy_loaders():

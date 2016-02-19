@@ -1,10 +1,13 @@
+from __future__ import print_function
 
+from six import reraise
 from theano import gof
 import sys
 
 
 class DebugException(Exception):
     pass
+
 
 class DebugLinker(gof.WrapLinker):
 
@@ -21,8 +24,8 @@ class DebugLinker(gof.WrapLinker):
         if debug_post is None:
             debug_post = []
         gof.WrapLinker.__init__(self,
-                                linkers = linkers,
-                                wrapper = self.wrapper)
+                                linkers=linkers,
+                                wrapper=self.wrapper)
 
         self.fgraph = None
 
@@ -65,8 +68,8 @@ class DebugLinker(gof.WrapLinker):
         for thunk, linker in zip(thunks, self.linkers):
             for r in node.outputs:
                 try:
-                    r.type.filter(r.value, strict = True)
-                except TypeError, e:
+                    r.type.filter(r.value, strict=True)
+                except TypeError as e:
                     exc_type, exc_value, exc_trace = sys.exc_info()
                     exc = DebugException(e, "The output %s was filled with data with the wrong type using linker " \
                                          ("%s. This happened at step %i of the program." % (r, linker, i)) + \
@@ -79,7 +82,7 @@ class DebugLinker(gof.WrapLinker):
                     exc.node = node
                     exc.thunk = thunk
                     exc.linker = linker
-                    raise DebugException, exc, exc_trace
+                    reraise(DebugException, exc, exc_trace)
 
     def compare_variables(self, i, node, *thunks):
         thunk0 = thunks[0]
@@ -106,7 +109,7 @@ class DebugLinker(gof.WrapLinker):
         fgraph = f.fgraph
         for r in fgraph.variables:
             if r.owner is None:
-                r.step = "value" # this will be overwritten if r is an input
+                r.step = "value"  # this will be overwritten if r is an input
             else:
                 r.step = None
             r.value = None
@@ -133,7 +136,7 @@ class DebugLinker(gof.WrapLinker):
             self.store_value(i, node, *thunks)
             for f in self.debug_post:
                 f(i, node, *thunks)
-        except Exception, e:
+        except Exception as e:
             exc_type, exc_value, exc_trace = sys.exc_info()
             if isinstance(e, DebugException):
                 raise
@@ -144,15 +147,16 @@ class DebugLinker(gof.WrapLinker):
             exc.step = i
             exc.node = node
             exc.thunks = thunks
-            raise DebugException, exc, exc_trace
-
+            reraise(DebugException, exc, exc_trace)
 
 
 def print_info(i, node, *thunks):
-    print "step %i, node %s" % (i, node)
+    print("step %i, node %s" % (i, node))
+
 
 def print_from(i, node, *thunks):
-    print "parents:", ", ".join(str(input.step) for input in node.inputs)
+    print("parents:", ", ".join(str(input.step) for input in node.inputs))
+
 
 def print_input_shapes(i, node, *thunks):
     shapes = []
@@ -161,16 +165,20 @@ def print_input_shapes(i, node, *thunks):
             shapes.append(str(input.value.shape))
         else:
             shapes.append('N/A')
-    print "input shapes:", ", ".join(shapes)
+    print("input shapes:", ", ".join(shapes))
+
 
 def print_input_types(i, node, *thunks):
-    print "input types:", ", ".join(str(type(input.value)) for input in node.inputs)
+    print("input types:", ", ".join(str(type(input.value)) for input in node.inputs))
+
 
 def print_sep(i, node, *thunks):
-    print "==================================="
+    print("===================================")
 
 import numpy
-def numpy_compare(a, b, tolerance = 1e-6):
+
+
+def numpy_compare(a, b, tolerance=1e-6):
     if isinstance(a, numpy.ndarray):
         return (abs(a - b) <= tolerance).all()
     else:
@@ -183,6 +191,6 @@ def numpy_debug_linker(pre, post=None):
     return DebugLinker([gof.OpWiseCLinker],
                        pre,
                        post,
-                       compare_fn = numpy_compare)
+                       compare_fn=numpy_compare)
 
 
